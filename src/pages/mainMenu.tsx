@@ -34,7 +34,7 @@ const MainMenu = () => {
                 min-h-screen
                 "
             >
-                <Menu />
+                <Menu className="relative top-1/2 translate-y-1/2" />
             </div>
         </main>
     );
