@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, stagger } from "motion/react";
+import { motion } from "motion/react";
 import logo from "../../assets/chess-logo.svg";
 import Button from "../Button";
 import { useNavigate } from "react-router";
