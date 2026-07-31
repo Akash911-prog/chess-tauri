@@ -1,10 +1,10 @@
 use crate::engine::types::PieceKind;
 
-struct HistoryManager {
+pub struct HistoryManager {
     undo_struct: Vec<UndoInfo>,
 }
 
-struct UndoInfo {
+pub struct UndoInfo {
     pub move_mask: u16,
     pub captured_piece: PieceKind,
     pub castling_rights: u8,

@@ -24,6 +24,11 @@ impl BitBoard {
     pub const EMPTY: Self = BitBoard(0);
     pub const ALL: Self = BitBoard(u64::MAX);
 
+    #[inline(always)]
+    pub fn value(&self) -> u64 {
+        self.0
+    }
+
     /// Construct a BitBoard with a single bit set at `index` (0..63).
     #[inline(always)]
     pub const fn from_square(index: u8) -> Self {
