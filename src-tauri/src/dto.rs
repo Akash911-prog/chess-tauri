@@ -34,21 +34,34 @@ pub enum Legality {
     Illegal = 1,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", content = "data")]
+pub enum CommandError {
+    InvalidSquareIndex { square: u16 }, // out of 0..64 range
+    EmptySquare { square: u8 },         // no piece to move/query at all
+    GameAlreadyOver,                    // checkmate/stalemate/draw already reached
+}
+
 // ----------------------------
 //          COMMANDS
 // ----------------------------
 
 // remember to call `.manage(MyState::default())`
 #[tauri::command]
-pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), String> {
+pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), CommandError> {
     println!("{:?}", move_info);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update(move_info: MoveInfo) -> Result<(), String> {
+pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandError> {
     println!("{:?}", move_info);
-    Ok(())
+    let game_state = app.state::<Mutex<Game>>();
+    let game = game_state.lock().unwrap();
+
+    let mut board = game.board.lock().unwrap();
+    let result = board.parse_react_move(move_info)?;
+    Ok(result)
 }
 
 // ----------------------------

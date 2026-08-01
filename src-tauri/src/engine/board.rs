@@ -1,5 +1,5 @@
 use crate::{
-    dto::{Legality, MoveInfo},
+    dto::{CommandError, Legality, MoveInfo},
     engine::{
         bitboard::BitBoard,
         history::HistoryManager,
@@ -95,13 +95,19 @@ impl Board {
 
     pub fn undo_move(&mut self) {}
 
-    pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Legality {
+    pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
         let new_move: Move;
         let from = self.notation_to_index(&move_info.from);
         let to = self.notation_to_index(&move_info.to);
 
-        if (from > 63) || (to > 63) {
-            return Legality::Illegal;
+        if from > 63 {
+            return Err(CommandError::InvalidSquareIndex {
+                square: from as u16,
+            });
+        }
+
+        if to > 63 {
+            return Err(CommandError::InvalidSquareIndex { square: to as u16 });
         }
 
         // 16-bit move encoding: [6-bit from][6-bit to]
@@ -114,12 +120,12 @@ impl Board {
         let piece_idx = self.get_piece_index(piece_mask, side);
 
         if piece_idx > 5 {
-            return Legality::Illegal;
+            return Err(CommandError::EmptySquare { square: from });
         }
         let piece_type = PieceKind::from_idx(piece_idx);
 
         if !(self.validate_move(piece_type, from, to)) {
-            return Legality::Illegal;
+            return Ok(Legality::Illegal);
         }
 
         if (self.color_occupency[!side as usize] & captured_piece_mask) == 0 {
@@ -129,18 +135,34 @@ impl Board {
             let captured_piece_idx = self.get_piece_index(captured_piece_mask, !side);
 
             if captured_piece_idx > 5 {
-                return Legality::Illegal;
+                return Ok(Legality::Illegal);
             };
 
             let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
             new_move = Move::new(move_mask, captured_piece);
         }
 
-        self.make_move(new_move)
+        Ok(self.make_move(new_move))
     }
 
     fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
-        true
+        let possible_moves = self.move_gen.get_legal_moves_by_piece(
+            piece_type,
+            self.total_occupency,
+            from as usize,
+            self.player_turn,
+            self.color_occupency[!self.player_turn as usize],
+            self.color_occupency[self.player_turn as usize],
+        );
+
+        let current_move = (from as u64) | (to as u64);
+
+        if let Some(possible_moves) = possible_moves {
+            if (possible_moves & current_move) == current_move {
+                return true;
+            }
+        }
+        false
     }
 
     fn notation_to_index(&self, notation: &str) -> u8 {

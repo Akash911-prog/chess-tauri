@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use crate::engine::board::Board;
 
 pub struct Game {
-    board: Mutex<Board>,
+    pub board: Mutex<Board>,
 }
 
 impl Game {

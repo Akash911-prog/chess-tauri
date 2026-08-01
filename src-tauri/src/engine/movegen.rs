@@ -1,6 +1,6 @@
 use crate::engine::{
     bitboard::{BitBoard, FILE_A, FILE_AB, FILE_GH, FILE_H},
-    types::PieceKind,
+    types::PieceKind::{self, Bishop, King, Knight, Pawn, Queen, Rook},
 };
 
 pub struct MoveGen {
@@ -30,6 +30,47 @@ impl MoveGen {
         self.gen_king_moves();
         self.gen_pawn_attacks();
         self.gen_pawn_pushes();
+    }
+
+    pub fn get_legal_moves_by_piece(
+        &self,
+        piece: PieceKind,
+        occupied: BitBoard,
+        idx: usize,
+        color: u8,
+        enemy: BitBoard,
+        friendly: BitBoard,
+    ) -> Option<BitBoard> {
+        match piece {
+            Knight => {
+                let possible_moves = self.knight_moves[idx] & !friendly;
+                return Some(possible_moves);
+            }
+            King => {
+                let possible_moves = self.king_moves[idx] & !friendly;
+                return Some(possible_moves);
+            }
+            Pawn => {
+                let possible_pushes = (self.pawn_push_single[color as usize][idx] & !occupied)
+                    & (self.pawn_push_double[color as usize][idx] & !occupied);
+                let possible_attacks = self.pawn_attack[color as usize][idx] & enemy;
+
+                return Some(possible_attacks | possible_pushes);
+            }
+            Rook => {
+                let possible_moves = self.get_rook_attacks(idx, occupied) & !friendly;
+                return Some(possible_moves);
+            }
+            Bishop => {
+                let possible_moves = self.get_bishop_attacks(idx, occupied) & !friendly;
+                return Some(possible_moves);
+            }
+            Queen => {
+                let possible_moves = self.get_queen_attacks(idx, occupied) & !friendly;
+                return Some(possible_moves);
+            }
+            _ => return None,
+        }
     }
 
     pub fn gen_knight_moves(&mut self) {
@@ -105,7 +146,7 @@ impl MoveGen {
         }
     }
 
-    pub fn get_rook_attacks(&self, sq: usize, occupied: u64) -> u64 {
+    pub fn get_rook_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
         let mut attacks = 0u64;
 
         // 1. UP (+8)
@@ -160,7 +201,7 @@ impl MoveGen {
     }
 
     /// Generates attacks for a Bishop on `sq` considering all `occupied` pieces on the board.
-    pub fn get_bishop_attacks(&self, sq: usize, occupied: u64) -> u64 {
+    pub fn get_bishop_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
         let mut attacks = 0u64;
 
         // 1. UP-RIGHT (+9)
@@ -211,20 +252,31 @@ impl MoveGen {
     }
 
     /// Queen attacks are simply Rook attacks OR Bishop attacks!
-    pub fn get_queen_attacks(&self, sq: usize, occupied: u64) -> u64 {
+    pub fn get_queen_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
         self.get_rook_attacks(sq, occupied) | self.get_bishop_attacks(sq, occupied)
     }
 }
 
-// Flag definitions for Bits 12..15
-pub const FLAG_QUIET: u16 = 0b0000 << 12;
-pub const FLAG_DOUBLE_PUSH: u16 = 0b0001 << 12;
-pub const FLAG_KING_CASTLE: u16 = 0b0010 << 12;
-pub const FLAG_QUEEN_CASTLE: u16 = 0b0011 << 12;
-pub const FLAG_CAPTURE: u16 = 0b0100 << 12;
-pub const FLAG_EP_CAPTURE: u16 = 0b0101 << 12;
-pub const FLAG_PROMO_QUEEN: u16 = 0b1000 << 12;
-pub const FLAG_PROMO_ROOK: u16 = 0b1001 << 12;
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveFlag {
+    Quiet = 0b0000,
+    DoublePush = 0b0001,
+    KingCastle = 0b0010,
+    QueenCastle = 0b0011,
+    Capture = 0b0100,
+    EpCapture = 0b0101,
+    PromoQueen = 0b1000,
+    PromoRook = 0b1001,
+}
+
+impl MoveFlag {
+    /// Shifts this flag into bits 12..15 for packing into a move u16.
+    #[inline(always)]
+    pub fn bits(self) -> u16 {
+        (self as u16) << 12
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Move {
@@ -250,7 +302,15 @@ impl Move {
         ((self.move_mask >> 6) & 0x3F) as u8
     }
 
-    pub fn flags(&self) -> u8 {
-        (self.move_mask & 0xF000) as u8
+    pub fn flags(&self) -> u16 {
+        self.move_mask & 0xF000
+    }
+
+    pub fn piece(&self) -> u8 {
+        (self.piece & 0x0F) as u8
+    }
+
+    pub fn captured_piece(&self) -> u8 {
+        (self.piece >> 4) as u8
     }
 }
