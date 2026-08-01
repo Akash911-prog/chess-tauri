@@ -233,6 +233,30 @@ impl BitXor<u64> for BitBoard {
     }
 }
 
+impl BitOr<BitBoard> for u64 {
+    type Output = BitBoard;
+    #[inline(always)]
+    fn bitor(self, rhs: BitBoard) -> BitBoard {
+        BitBoard(self | rhs.0)
+    }
+}
+
+impl BitAnd<BitBoard> for u64 {
+    type Output = BitBoard;
+    #[inline(always)]
+    fn bitand(self, rhs: BitBoard) -> BitBoard {
+        BitBoard(self & rhs.0)
+    }
+}
+
+impl BitXor<BitBoard> for u64 {
+    type Output = BitBoard;
+    #[inline(always)]
+    fn bitxor(self, rhs: BitBoard) -> BitBoard {
+        BitBoard(self ^ rhs.0)
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Assign Operators (`|=`, `&=`, `^=`, `<<=`, `>>=`)
 // ----------------------------------------------------------------------------
@@ -276,6 +300,27 @@ impl BitXorAssign<u64> for BitBoard {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: u64) {
         self.0 ^= rhs;
+    }
+}
+
+impl BitOrAssign<BitBoard> for u64 {
+    #[inline(always)]
+    fn bitor_assign(&mut self, rhs: BitBoard) {
+        *self |= rhs.0;
+    }
+}
+
+impl BitAndAssign<BitBoard> for u64 {
+    #[inline(always)]
+    fn bitand_assign(&mut self, rhs: BitBoard) {
+        *self &= rhs.0;
+    }
+}
+
+impl BitXorAssign<BitBoard> for u64 {
+    #[inline(always)]
+    fn bitxor_assign(&mut self, rhs: BitBoard) {
+        *self ^= rhs.0;
     }
 }
 
@@ -349,5 +394,23 @@ impl fmt::Display for BitBoard {
         }
         writeln!(f, "  +-----------------+")?;
         writeln!(f, "    a b c d e f g h")
+    }
+}
+
+//----------------------------------------------------------------------------
+// Comparisons
+//----------------------------------------------------------------------------
+
+// Implement PartialEq to compare MyNumber == u64
+impl PartialEq<u64> for BitBoard {
+    fn eq(&self, other: &u64) -> bool {
+        self.0 == *other
+    }
+}
+
+// Implement PartialEq to compare u64 == MyNumber (for symmetry)
+impl PartialEq<BitBoard> for u64 {
+    fn eq(&self, other: &BitBoard) -> bool {
+        *self == other.0
     }
 }

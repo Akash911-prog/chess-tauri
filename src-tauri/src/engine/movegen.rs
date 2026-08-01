@@ -230,7 +230,7 @@ pub const FLAG_PROMO_ROOK: u16 = 0b1001 << 12;
 pub struct Move {
     // board State
     move_mask: u16, // 16-bit move encoding: [6-bit from][6-bit to][4-bit special flags]
-    piece: u8,      // 4-bit piece type ([4-bit piece][4-bit captured piece]) value > 7 means None
+    piece: u8,      // 4-bit piece type ([4-bit piece][4-bit captured piece]) value > 6 means None
 }
 
 impl Move {

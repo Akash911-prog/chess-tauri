@@ -1,8 +1,8 @@
 use crate::{
-    dto::MoveInfo,
+    dto::{Legality, MoveInfo},
     engine::{
         bitboard::BitBoard,
-        history::{HistoryManager, Undo},
+        history::HistoryManager,
         movegen::{Move, MoveGen},
         types::{Color, PieceKind},
     },
@@ -89,34 +89,80 @@ impl Board {
         self.color_occupency[self.player_turn as usize]
     }
 
-    pub fn make_move(&mut self, move_info: Move) {}
+    pub fn make_move(&mut self, move_info: Move) -> Legality {
+        Legality::Legal
+    }
 
-    pub fn parse_react_move(&mut self, move_info: MoveInfo) {
+    pub fn undo_move(&mut self) {}
+
+    pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Legality {
+        let new_move: Move;
         let from = self.notation_to_index(&move_info.from);
         let to = self.notation_to_index(&move_info.to);
+
+        if (from > 63) || (to > 63) {
+            return Legality::Illegal;
+        }
 
         // 16-bit move encoding: [6-bit from][6-bit to]
         let move_mask = ((to as u16) << 6) | (from as u16);
         let piece_mask = 1u64 << from;
-
-        let side = self.player_turn as usize;
+        let captured_piece_mask = 1u64 << to;
+        let side = self.player_turn;
 
         // Find the piece index (0 = Pawn, 1 = Knight, etc.) that occupies the 'from' square
-        let piece_idx_option = self.pieces[side]
-            .iter()
-            .position(|&piece_bitboard| (piece_bitboard & piece_mask) != BitBoard(0));
+        let piece_idx = self.get_piece_index(piece_mask, side);
 
-        let piece_idx = match piece_idx_option {
-            Some(idx) => idx,
-            None => return, // TODO: instead or normal return return some value
-        };
-
+        if piece_idx > 5 {
+            return Legality::Illegal;
+        }
         let piece_type = PieceKind::from_idx(piece_idx);
+
+        if !(self.validate_move(piece_type, from, to)) {
+            return Legality::Illegal;
+        }
+
+        if (self.color_occupency[!side as usize] & captured_piece_mask) == 0 {
+            let piece = (6u8 << 4) | (piece_idx as u8);
+            new_move = Move::new(move_mask, piece);
+        } else {
+            let captured_piece_idx = self.get_piece_index(captured_piece_mask, !side);
+
+            if captured_piece_idx > 5 {
+                return Legality::Illegal;
+            };
+
+            let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
+            new_move = Move::new(move_mask, captured_piece);
+        }
+
+        self.make_move(new_move)
+    }
+
+    fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
+        true
     }
 
     fn notation_to_index(&self, notation: &str) -> u8 {
         let file = notation.chars().nth(0).unwrap() as u8 - 'a' as u8;
         let rank = notation.chars().nth(1).unwrap() as u8 - '1' as u8;
+
+        if (file > 7) || (rank > 7) {
+            return 64; // index beyond 63 means illegal move. That is what is returned
+        }
         rank * 8 + file
+    }
+
+    fn get_piece_index(&self, mask: u64, side: u8) -> usize {
+        let piece_idx_option = self.pieces[side as usize]
+            .iter()
+            .position(|&piece_bitboard| (piece_bitboard & mask) != BitBoard(0));
+
+        let piece_idx = match piece_idx_option {
+            Some(idx) => idx,
+            None => return 6, // Out of bound index. Meaning no pieces found
+        };
+
+        piece_idx
     }
 }

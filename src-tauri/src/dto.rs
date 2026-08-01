@@ -1,6 +1,6 @@
 use std::{ops::Deref, sync::Mutex};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Listener, Manager};
 
 use crate::engine::game::Game;
@@ -26,6 +26,12 @@ pub struct GetLegalMovesParams {
     pub piece_type: String,
     pub square: String,
     pub color: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Legality {
+    Legal = 0,
+    Illegal = 1,
 }
 
 // ----------------------------
