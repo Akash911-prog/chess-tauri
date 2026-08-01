@@ -4,6 +4,16 @@ use serde::Deserialize;
 pub struct MoveInfo {
     pub from: String,
     pub to: String,
+    pub promotion: Option<PromotionPiece>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PromotionPiece {
+    Q,
+    R,
+    B,
+    N,
 }
 
 #[derive(Debug, Deserialize)]

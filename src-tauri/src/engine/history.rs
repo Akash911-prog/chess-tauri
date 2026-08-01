@@ -1,15 +1,7 @@
-use crate::engine::types::PieceKind;
+use crate::engine::movegen::Move;
 
 pub struct HistoryManager {
-    undo_struct: Vec<UndoInfo>,
-}
-
-pub struct UndoInfo {
-    pub move_mask: u16,
-    pub captured_piece: PieceKind,
-    pub castling_rights: u8,
-    pub ep_square: u8,
-    pub halfmove_clock: u16,
+    undo_struct: Vec<Undo>,
 }
 
 impl HistoryManager {
@@ -19,7 +11,7 @@ impl HistoryManager {
         }
     }
 
-    pub fn pop(&mut self) -> Option<UndoInfo> {
+    pub fn pop(&mut self) -> Option<Undo> {
         if self.undo_struct.is_empty() {
             return None;
         }
@@ -30,7 +22,27 @@ impl HistoryManager {
         }
     }
 
-    pub fn push(&mut self, info: UndoInfo) {
+    pub fn push(&mut self, info: Undo) {
         self.undo_struct.push(info);
+    }
+}
+
+pub struct Undo {
+    pub mv: Move,              // what was played, so unmake knows how to reverse it
+    pub castling_rights: u8,   // rights BEFORE this move (once you've fixed the naming above)
+    pub en_passant_square: u8, // ep square BEFORE this move
+    pub halfmove_clock: u8,
+    pub zobrist_hash: u64, // hash BEFORE this move
+}
+
+impl Undo {
+    pub fn new(mv: Move, castling_rights: u8, en_passant_square: u8, halfmove_clock: u8) -> Undo {
+        Undo {
+            mv,
+            castling_rights,
+            en_passant_square,
+            halfmove_clock,
+            zobrist_hash: 0,
+        }
     }
 }

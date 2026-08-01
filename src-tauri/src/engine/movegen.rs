@@ -1,4 +1,7 @@
-use crate::engine::bitboard::{BitBoard, FILE_A, FILE_AB, FILE_GH, FILE_H};
+use crate::engine::{
+    bitboard::{BitBoard, FILE_A, FILE_AB, FILE_GH, FILE_H},
+    types::PieceKind,
+};
 
 pub struct MoveGen {
     knight_moves: [u64; 64],
@@ -210,5 +213,44 @@ impl MoveGen {
     /// Queen attacks are simply Rook attacks OR Bishop attacks!
     pub fn get_queen_attacks(&self, sq: usize, occupied: u64) -> u64 {
         self.get_rook_attacks(sq, occupied) | self.get_bishop_attacks(sq, occupied)
+    }
+}
+
+// Flag definitions for Bits 12..15
+pub const FLAG_QUIET: u16 = 0b0000 << 12;
+pub const FLAG_DOUBLE_PUSH: u16 = 0b0001 << 12;
+pub const FLAG_KING_CASTLE: u16 = 0b0010 << 12;
+pub const FLAG_QUEEN_CASTLE: u16 = 0b0011 << 12;
+pub const FLAG_CAPTURE: u16 = 0b0100 << 12;
+pub const FLAG_EP_CAPTURE: u16 = 0b0101 << 12;
+pub const FLAG_PROMO_QUEEN: u16 = 0b1000 << 12;
+pub const FLAG_PROMO_ROOK: u16 = 0b1001 << 12;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Move {
+    // board State
+    move_mask: u16, // 16-bit move encoding: [6-bit from][6-bit to][4-bit special flags]
+    piece: u8,      // 4-bit piece type ([4-bit piece][4-bit captured piece]) value > 7 means None
+}
+
+impl Move {
+    pub fn new(move_mask: u16, piece: u8) -> Move {
+        Move { move_mask, piece }
+    }
+
+    pub fn move_mask(&self) -> u16 {
+        self.move_mask
+    }
+
+    pub fn from(&self) -> u8 {
+        (self.move_mask & 0x3F) as u8
+    }
+
+    pub fn to(&self) -> u8 {
+        ((self.move_mask >> 6) & 0x3F) as u8
+    }
+
+    pub fn flags(&self) -> u8 {
+        (self.move_mask & 0xF000) as u8
     }
 }

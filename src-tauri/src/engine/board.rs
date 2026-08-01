@@ -2,9 +2,9 @@ use crate::{
     dto::MoveInfo,
     engine::{
         bitboard::BitBoard,
-        history::{HistoryManager, UndoInfo},
-        movegen::MoveGen,
-        types::Color,
+        history::{HistoryManager, Undo},
+        movegen::{Move, MoveGen},
+        types::{Color, PieceKind},
     },
 };
 
@@ -33,12 +33,12 @@ pub struct Board {
     pub color_occupency: [BitBoard; 2],
     pub total_occupency: BitBoard,
 
-    // board State
-    pub player_turn: u8,     // 0 = white, 1 = black
-    pub castling_rights: u8, // KQkq
-    pub en_passant: u8,      // index of sq
-    pub halfmove_clock: u16, // clock
-    pub fullmove_clock: u16, // move counter
+    pub player_turn: u8, // 0 = white, 1 = black
+    pub castling_rights: u8,
+    pub promotion: u8,         // KQkq
+    pub en_passant_square: u8, // index of sq
+    pub halfmove_clock: u16,   // clock
+    pub fullmove_clock: u16,
 
     pub zobrist_hash: u64, // TODO: Add the actualy hash logic and table logic later. Version 2.0
 
@@ -54,8 +54,9 @@ impl Board {
             total_occupency: BitBoard::EMPTY,
 
             player_turn: 0,
-            castling_rights: 0b1111,
-            en_passant: 0,
+            castling_rights: 0,
+            promotion: 0,
+            en_passant_square: 0,
             halfmove_clock: 0,
             fullmove_clock: 0,
 
@@ -88,32 +89,29 @@ impl Board {
         self.color_occupency[self.player_turn as usize]
     }
 
-    pub fn make_move(&mut self, move_info: MoveInfo) {
+    pub fn make_move(&mut self, move_info: Move) {}
+
+    pub fn parse_react_move(&mut self, move_info: MoveInfo) {
         let from = self.notation_to_index(&move_info.from);
         let to = self.notation_to_index(&move_info.to);
 
         // 16-bit move encoding: [6-bit from][6-bit to]
-        let move_mask = ((from as u16) << 8) | (to as u16);
+        let move_mask = ((to as u16) << 6) | (from as u16);
         let piece_mask = 1u64 << from;
 
         let side = self.player_turn as usize;
 
         // Find the piece index (0 = Pawn, 1 = Knight, etc.) that occupies the 'from' square
-        let piece_type = self.pieces[side]
+        let piece_idx_option = self.pieces[side]
             .iter()
             .position(|&piece_bitboard| (piece_bitboard & piece_mask) != BitBoard(0));
 
-        match piece_type {
-            Some(piece_index) => {
-                // Found your piece! (e.g., piece_index = 1 for Knight)
-                println!("Moving piece type {}", piece_index);
+        let piece_idx = match piece_idx_option {
+            Some(idx) => idx,
+            None => return, // TODO: instead or normal return return some value
+        };
 
-                // Update bitboard: clear 'from' bit, set 'to' bit
-                self.pieces[side][piece_index] ^= piece_mask; // Remove from 'from'
-                self.pieces[side][piece_index] |= 1u64 << to; // Add to 'to'
-            }
-            None => panic!("Illegal move: No piece found on square {}", move_info.from),
-        }
+        let piece_type = PieceKind::from_idx(piece_idx);
     }
 
     fn notation_to_index(&self, notation: &str) -> u8 {
