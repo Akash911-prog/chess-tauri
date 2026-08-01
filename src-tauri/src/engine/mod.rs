@@ -1,7 +1,7 @@
 mod bitboard;
 mod board;
 mod computer;
-mod game;
+pub mod game;
 mod history;
 mod movegen;
 mod types;
