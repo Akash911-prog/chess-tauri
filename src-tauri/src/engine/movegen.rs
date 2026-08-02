@@ -1,3 +1,6 @@
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+
 use crate::engine::{
     bitboard::{BitBoard, FILE_A, FILE_AB, FILE_GH, FILE_H},
     types::PieceKind::{self, Bishop, King, Knight, Pawn, Queen, Rook},
@@ -51,9 +54,14 @@ impl MoveGen {
                 return Some(possible_moves);
             }
             Pawn => {
-                let possible_pushes = (self.pawn_push_single[color as usize][idx] & !occupied)
-                    & (self.pawn_push_double[color as usize][idx] & !occupied);
+                // self._debug(color);
+                let mut possible_double_pushes = BitBoard(0);
+                let possible_single_pushes = self.pawn_push_single[color as usize][idx] & !occupied;
+                if possible_single_pushes != 0 {
+                    possible_double_pushes = self.pawn_push_double[color as usize][idx] & !occupied;
+                }
                 let possible_attacks = self.pawn_attack[color as usize][idx] & enemy;
+                let possible_pushes = possible_single_pushes | possible_double_pushes;
 
                 return Some(possible_attacks | possible_pushes);
             }
@@ -71,6 +79,29 @@ impl MoveGen {
             }
             _ => return None,
         }
+    }
+
+    fn _debug(&self, color: u8) {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("debug_bitboards.txt")
+            .expect("failed to open debug log file");
+
+        writeln!(file, "=== pawn_push_single (color {}) ===", color).unwrap();
+        self.pawn_push_single[color as usize]
+            .iter()
+            .for_each(|&bb| writeln!(file, "{}", BitBoard(bb)).unwrap());
+
+        writeln!(file, "=== pawn_push_double (color {}) ===", color).unwrap();
+        self.pawn_push_double[color as usize]
+            .iter()
+            .for_each(|&bb| writeln!(file, "{}", BitBoard(bb)).unwrap());
+
+        writeln!(file, "=== pawn_attack (color {}) ===", color).unwrap();
+        self.pawn_attack[color as usize]
+            .iter()
+            .for_each(|&bb| writeln!(file, "{}", BitBoard(bb)).unwrap());
     }
 
     pub fn gen_knight_moves(&mut self) {

@@ -1,5 +1,8 @@
 mod dto;
 mod engine;
+#[cfg(test)]
+mod tests;
+
 use crate::engine::game::Game;
 use std::sync::Mutex;
 

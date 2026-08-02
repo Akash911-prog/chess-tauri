@@ -16,6 +16,7 @@ impl Game {
     pub fn init(&mut self) {
         let move_gen = &mut self.board.lock().unwrap().move_gen;
         move_gen.generate_moves();
+        self.board.lock().unwrap().set_occupency();
     }
 }
 

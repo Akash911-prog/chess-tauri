@@ -89,6 +89,12 @@ impl Board {
         self.color_occupency[self.player_turn as usize]
     }
 
+    pub fn set_occupency(&mut self) {
+        self.color_occupency[0] = self.pieces[0].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.color_occupency[1] = self.pieces[1].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
+    }
+
     pub fn make_move(&mut self, move_info: Move) -> Legality {
         Legality::Legal
     }
@@ -128,11 +134,11 @@ impl Board {
             return Ok(Legality::Illegal);
         }
 
-        if (self.color_occupency[!side as usize] & captured_piece_mask) == 0 {
+        if (self.color_occupency[(side ^ 1) as usize] & captured_piece_mask) == 0 {
             let piece = (6u8 << 4) | (piece_idx as u8);
             new_move = Move::new(move_mask, piece);
         } else {
-            let captured_piece_idx = self.get_piece_index(captured_piece_mask, !side);
+            let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
 
             if captured_piece_idx > 5 {
                 return Ok(Legality::Illegal);
@@ -186,5 +192,36 @@ impl Board {
         };
 
         piece_idx
+    }
+
+    pub fn get_all_legal_moves(&self) -> Vec<BitBoard> {
+        let color = self.player_turn;
+        let friendly = self.color_occupency[color as usize];
+        let enemy = self.color_occupency[(color ^ 1) as usize];
+        let occupied = self.total_occupency;
+
+        let mut all_moves = Vec::new();
+        for piece_idx in 0..6 {
+            let piece_type = PieceKind::from_idx(piece_idx);
+            println!("piece_type: {:?}", piece_type);
+            let mut bb = self.pieces[color as usize][piece_idx];
+            while bb.0 != 0 {
+                let sq = match bb.pop_lsb() {
+                    Some(sq) => sq,
+                    None => break,
+                };
+                if let Some(moves) = self.move_gen.get_legal_moves_by_piece(
+                    piece_type,
+                    occupied,
+                    sq.into(),
+                    color,
+                    enemy,
+                    friendly,
+                ) {
+                    all_moves.push(moves);
+                }
+            }
+        }
+        all_moves
     }
 }
