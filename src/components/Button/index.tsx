@@ -15,10 +15,12 @@ const Button = ({
 }: ButtonProps) => {
     return (
         <div
-            className="w-fit h-fit rounded-2xl overflow-hidden hover:translate-y-0.5 transition-all duration-200 btn-shadow active:translate-1.5"
+            className={`w-fit h-fit rounded-2xl overflow-hidden hover:translate-y-0.5 transition-all duration-200 btn-shadow active:translate-1.5 ${className}`}
             style={{ backgroundImage: `url(${wood})` }}
         >
-            <div className="w-98 h-22 rounded-2xl overflow-hidden border-yellow-600 border-4">
+            <div
+                className={`w-98 h-22 rounded-2xl overflow-hidden border-yellow-600 border-4 ${className}`}
+            >
                 <button
                     type={type}
                     {...props}

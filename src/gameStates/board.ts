@@ -26,6 +26,11 @@ class Board {
         this._prevboardStack = value;
     }
 
+    reset(): void {
+        this._board = INITIAL_BOARD;
+        this._prevboardStack = [];
+    }
+
     getPiece(square: string): Piece | null {
         return this._board[square];
     }
@@ -43,10 +48,12 @@ class Board {
     }
 
     updateBoard(from: string, to: string): void {
-        this.prevboardStack.push(this._board);
+        this.prevboardStack.push({ ...this._board });
         this._board[to] = this._board[from];
         this._board[from] = null;
     }
+
+    private checkMove(from: string, to: string) {}
 
     undoMove(): void {
         if (this.prevboardStack.length === 0) return;

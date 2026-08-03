@@ -6,8 +6,8 @@ const BACK_RANK: PieceKind[] = [
     PieceKind.Rook,
     PieceKind.Knight,
     PieceKind.Bishop,
-    PieceKind.Queen,
     PieceKind.King,
+    PieceKind.Queen,
     PieceKind.Bishop,
     PieceKind.Knight,
     PieceKind.Rook,
@@ -17,8 +17,8 @@ function buildInitialBoard(): Record<string, Piece | null> {
     const board: Record<string, Piece | null> = {};
 
     // all squares start empty
-    for (const file of FILES) {
-        for (let r = 1; r <= 8; r++) {
+    for (let r = 1; r <= 8; r++) {
+        for (const file of FILES) {
             board[`${file}${r}` as Square] = null;
         }
     }
