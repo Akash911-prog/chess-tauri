@@ -1,4 +1,4 @@
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 
 use crate::engine::{
@@ -130,8 +130,8 @@ impl MoveGen {
             let k = 1u64 << sq;
             let mut attacks = 0u64;
 
-            attacks |= (k.wrapping_shl(8)); // Up
-            attacks |= (k.wrapping_shr(8)); // Down
+            attacks |= k.wrapping_shl(8); // Up
+            attacks |= k.wrapping_shr(8); // Down
             attacks |= (k.wrapping_shr(1)) & !FILE_A; // Left
             attacks |= (k.wrapping_shl(1)) & !FILE_H; // Right
             attacks |= (k.wrapping_shl(7)) & !FILE_H; // Up-Left
@@ -299,6 +299,8 @@ pub enum MoveFlag {
     EpCapture = 0b0101,
     PromoQueen = 0b1000,
     PromoRook = 0b1001,
+    PromoKnight = 0b1010,
+    PromoBishop = 0b1011,
 }
 
 impl MoveFlag {

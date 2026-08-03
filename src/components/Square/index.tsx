@@ -1,6 +1,12 @@
-type Props = {};
+import { Piece } from "../../types";
 
-const Square = (props: Props) => {
+type Props = {
+    square: string;
+    piece: Piece | null;
+    idx: number;
+};
+
+const Square = ({ square, piece, idx }: Props) => {
     return <div>Square</div>;
 };
 

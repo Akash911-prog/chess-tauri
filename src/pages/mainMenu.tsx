@@ -1,7 +1,30 @@
+import { useEffect } from "react";
 import bgImage from "../assets/potential-main-menu-bg/3.jpg";
 import Menu from "../components/Menu";
+import { emit, listen, UnlistenFn } from "@tauri-apps/api/event";
 
 const MainMenu = () => {
+    useEffect(() => {
+        let unlisten: UnlistenFn;
+        let cancelled = false;
+
+        (async () => {
+            unlisten = await listen("init:end", () => {
+                if (!cancelled) {
+                    console.log("finished");
+                }
+            });
+            if (!cancelled) {
+                emit("init:start");
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            unlisten?.();
+        };
+    }, []);
+
     return (
         <main className="relative min-h-screen w-screen overflow-hidden">
             <div

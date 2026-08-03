@@ -14,10 +14,14 @@ impl Game {
     }
 
     pub fn init(&mut self) {
-        let move_gen = &mut self.board.lock().unwrap().move_gen;
-        move_gen.generate_moves();
-        self.board.lock().unwrap().set_occupency();
-    }
+        {
+            let mut board = self.board.lock().unwrap();
+            board.move_gen.generate_moves();
+        } // guard dropped here
+
+        let mut board = self.board.lock().unwrap();
+        board.set_occupency();
+    } // guard dropped here
 }
 
 impl Default for Game {

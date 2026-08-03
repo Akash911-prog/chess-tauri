@@ -7,6 +7,9 @@
 
     --color-accent-primary: hsl(194 41.3% 39%);
     --color-accent-secondary: hsl(0 62.4% 18.1%);
+
+    --color-sq-dark: #241a0f;
+    --color-sq-light: #eedc97;
 }
 
 * {

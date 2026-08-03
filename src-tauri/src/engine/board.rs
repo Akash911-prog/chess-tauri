@@ -1,10 +1,14 @@
 use crate::{
-    dto::{CommandError, Legality, MoveInfo},
+    dto::{CommandError, Legality, MoveInfo, PromotionPiece},
     engine::{
         bitboard::BitBoard,
-        history::HistoryManager,
-        movegen::{Move, MoveGen},
-        types::{Color, PieceKind},
+        history::{HistoryManager, Undo},
+        movegen::{
+            Move,
+            MoveFlag::{self, PromoBishop, PromoKnight, PromoQueen, PromoRook},
+            MoveGen,
+        },
+        types::{CastlingRights, Color, PieceKind},
     },
 };
 
@@ -33,12 +37,14 @@ pub struct Board {
     pub color_occupency: [BitBoard; 2],
     pub total_occupency: BitBoard,
 
-    pub player_turn: u8, // 0 = white, 1 = black
-    pub castling_rights: u8,
-    pub promotion: u8,         // KQkq
+    pub player_turn: u8,       // 0 = white, 1 = black
+    pub castling_rights: u8,   //KQkq
+    pub promotion: u8,         // 0 = Q, 1 = R, 2 = B, 3 = N
     pub en_passant_square: u8, // index of sq
-    pub halfmove_clock: u16,   // clock
+    pub halfmove_clock: u8,    // clock
     pub fullmove_clock: u16,
+
+    pub _move: Move,
 
     pub zobrist_hash: u64, // TODO: Add the actualy hash logic and table logic later. Version 2.0
 
@@ -54,13 +60,15 @@ impl Board {
             total_occupency: BitBoard::EMPTY,
 
             player_turn: 0,
-            castling_rights: 0,
+            castling_rights: 0x0F,
             promotion: 0,
-            en_passant_square: 0,
+            en_passant_square: 64,
             halfmove_clock: 0,
             fullmove_clock: 0,
 
             zobrist_hash: 0,
+
+            _move: Move::new(0u16, 0u8),
 
             move_gen: MoveGen::new(),
             history: HistoryManager::new(),
@@ -95,14 +103,60 @@ impl Board {
         self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
     }
 
-    pub fn make_move(&mut self, move_info: Move) -> Legality {
-        Legality::Legal
+    pub fn make_move(&mut self, move_info: Move) {
+        let undo = Undo::new(
+            self._move,
+            self.castling_rights,
+            self.en_passant_square,
+            self.halfmove_clock,
+        );
+
+        self.history.push(undo);
+
+        self._move = move_info;
+        self.castling_rights = self.get_castling_rights();
+        if (move_info.piece() == 0)
+            && ((move_info.flags() & MoveFlag::DoublePush.bits()) == MoveFlag::DoublePush.bits())
+        {
+            self.en_passant_square = if self.player_turn == 0 {
+                move_info.from() + 8
+            } else {
+                move_info.from() - 8
+            }
+        };
+
+        if (move_info.captured_piece() > 5) || (move_info.piece() == 0) {
+            self.halfmove_clock = 0;
+        } else {
+            self.halfmove_clock += 1;
+        };
+
+        if move_info.captured_piece() <= 5 {
+            let captured_board =
+                self.pieces[(self.player_turn ^ 1) as usize][move_info.captured_piece() as usize];
+
+            self.pieces[(self.player_turn ^ 1) as usize][move_info.captured_piece() as usize] =
+                captured_board ^ (1u64 << move_info.to());
+        };
+
+        let piece_board = self.pieces[self.player_turn as usize][move_info.from() as usize];
+
+        self.pieces[self.player_turn as usize][move_info.from() as usize] =
+            piece_board ^ ((1u64 << move_info.from()) | 1u64 << move_info.to());
+
+        self.set_occupency();
+
+        self.player_turn ^= 1;
     }
 
     pub fn undo_move(&mut self) {}
 
     pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
-        let new_move: Move;
+        if self.is_game_over() {
+            return Err(CommandError::GameAlreadyOver);
+        }
+
+        // --- Parse & validate square notation ---
         let from = self.notation_to_index(&move_info.from);
         let to = self.notation_to_index(&move_info.to);
 
@@ -111,44 +165,80 @@ impl Board {
                 square: from as u16,
             });
         }
-
         if to > 63 {
             return Err(CommandError::InvalidSquareIndex { square: to as u16 });
         }
 
         // 16-bit move encoding: [6-bit from][6-bit to]
-        let move_mask = ((to as u16) << 6) | (from as u16);
+        let mut move_mask = ((to as u16) << 6) | (from as u16);
         let piece_mask = 1u64 << from;
         let captured_piece_mask = 1u64 << to;
         let side = self.player_turn;
 
+        // --- Promotion check & Flag setting ---
+        let (promo_piece, is_promotion) = match move_info.promotion {
+            Some(promo) => (promo, true),
+            None => (PromotionPiece::B, false),
+        };
+
+        if is_promotion {
+            match promo_piece {
+                PromotionPiece::Q => {
+                    self.promotion |= 4;
+                    move_mask |= PromoQueen.bits()
+                }
+                PromotionPiece::R => {
+                    self.promotion |= 3;
+                    move_mask |= PromoRook.bits()
+                }
+                PromotionPiece::B => {
+                    self.promotion |= 2;
+                    move_mask |= PromoBishop.bits()
+                }
+                PromotionPiece::N => {
+                    self.promotion |= 1;
+                    move_mask |= PromoKnight.bits()
+                }
+            }
+        }
+
+        // --- Identify the moving piece ---
         // Find the piece index (0 = Pawn, 1 = Knight, etc.) that occupies the 'from' square
         let piece_idx = self.get_piece_index(piece_mask, side);
-
         if piece_idx > 5 {
             return Err(CommandError::EmptySquare { square: from });
         }
         let piece_type = PieceKind::from_idx(piece_idx);
 
-        if !(self.validate_move(piece_type, from, to)) {
+        // --- Legality check ---
+        if !self.validate_move(piece_type, from, to) {
             return Ok(Legality::Illegal);
         }
 
-        if (self.color_occupency[(side ^ 1) as usize] & captured_piece_mask) == 0 {
-            let piece = (6u8 << 4) | (piece_idx as u8);
-            new_move = Move::new(move_mask, piece);
-        } else {
-            let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
+        // --- Castle check & Flag setting ---
+        let castle = self.check_castle(piece_type, to);
 
-            if captured_piece_idx > 5 {
-                return Ok(Legality::Illegal);
-            };
-
-            let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
-            new_move = Move::new(move_mask, captured_piece);
+        match castle {
+            Some(flag) => move_mask |= flag.bits(),
+            None => {}
         }
 
-        Ok(self.make_move(new_move))
+        // --- Determine capture status & build the packed Move ---
+        let new_move = if (self.color_occupency[(side ^ 1) as usize] & captured_piece_mask) == 0 {
+            // Target square is empty - quiet move, no capture
+            let piece = (6u8 << 4) | (piece_idx as u8);
+            Move::new(move_mask, piece)
+        } else {
+            // Target square is occupied by an enemy piece - capture move
+            let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
+            if captured_piece_idx > 5 {
+                return Ok(Legality::Illegal);
+            }
+            let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
+            Move::new(move_mask, captured_piece)
+        };
+        self.make_move(new_move);
+        Ok(Legality::Legal)
     }
 
     fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
@@ -169,6 +259,75 @@ impl Board {
             }
         }
         false
+    }
+
+    fn check_castle(&self, piece_type: PieceKind, to: u8) -> Option<MoveFlag> {
+        if piece_type != PieceKind::King {
+            return None;
+        };
+
+        let casting_rights = match self.check_castling_rights() {
+            Some(rights) => rights,
+            None => return None,
+        };
+
+        if self.player_turn == 0 {
+            if (to == 6)
+                && ((casting_rights == CastlingRights::Both)
+                    || (casting_rights == CastlingRights::King))
+            {
+                return Some(MoveFlag::KingCastle);
+            } else if (to == 2)
+                && ((casting_rights == CastlingRights::Both)
+                    || (casting_rights == CastlingRights::Queen))
+            {
+                return Some(MoveFlag::QueenCastle);
+            } else {
+                return None;
+            }
+        } else {
+            if (to == 57)
+                && ((casting_rights == CastlingRights::Both)
+                    || (casting_rights == CastlingRights::King))
+            {
+                return Some(MoveFlag::KingCastle);
+            } else if (to == 61)
+                && ((casting_rights == CastlingRights::Both)
+                    || (casting_rights == CastlingRights::Queen))
+            {
+                return Some(MoveFlag::QueenCastle);
+            } else {
+                return None;
+            }
+        }
+    }
+
+    fn check_castling_rights(&self) -> Option<CastlingRights> {
+        if self.castling_rights == 0 {
+            return None;
+        };
+
+        let rights = self.castling_rights & 0x0F;
+
+        if self.player_turn == 0 {
+            match rights {
+                0x08 => return Some(CastlingRights::King),
+                0x04 => return Some(CastlingRights::Queen),
+                0x0C => return Some(CastlingRights::Both),
+                _ => return None,
+            };
+        } else {
+            match rights {
+                0x02 => return Some(CastlingRights::King),
+                0x01 => return Some(CastlingRights::Queen),
+                0x03 => return Some(CastlingRights::Both),
+                _ => return None,
+            }
+        }
+    }
+
+    fn get_castling_rights(&self) -> u8 {
+        0x0F
     }
 
     fn notation_to_index(&self, notation: &str) -> u8 {
@@ -192,6 +351,13 @@ impl Board {
         };
 
         piece_idx
+    }
+
+    fn is_game_over(&self) -> bool {
+        let legal_moves = self.get_all_legal_moves();
+        let total: u32 = legal_moves.iter().map(|bb| bb.count()).sum();
+
+        total == 0
     }
 
     pub fn get_all_legal_moves(&self) -> Vec<BitBoard> {

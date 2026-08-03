@@ -18,7 +18,11 @@ pub fn run() {
         })
         .manage(Mutex::new(Game::new()))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![dto::get_legal_moves, dto::update])
+        .invoke_handler(tauri::generate_handler![
+            dto::get_legal_moves,
+            dto::update,
+            dto::show_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

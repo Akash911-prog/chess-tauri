@@ -17,6 +17,13 @@ pub enum PieceKind {
     King = 5,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastlingRights {
+    King,
+    Queen,
+    Both,
+}
+
 impl PieceKind {
     fn from_idx_option(int: usize) -> Option<PieceKind> {
         match int {

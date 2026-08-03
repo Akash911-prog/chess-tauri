@@ -1,7 +1,7 @@
-use std::{ops::Deref, sync::Mutex};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Listener, Manager};
+use tauri::{AppHandle, Emitter, Listener, Manager};
 
 use crate::engine::game::Game;
 
@@ -64,17 +64,24 @@ pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandEr
     Ok(result)
 }
 
+#[tauri::command]
+pub fn show_window(app: AppHandle) -> Result<(), CommandError> {
+    app.get_webview_window("main").unwrap().show().unwrap();
+    return Ok(());
+}
+
 // ----------------------------
 //          EVENTS
 // ----------------------------
 pub fn app_start_listener(app: &AppHandle) {
     let app_clone = app.clone();
 
-    app.listen("app_start", move |e| {
-        println!("app_start: {}", e.payload());
+    app.listen("init:start", move |e| {
         let game_state = app_clone.state::<Mutex<Game>>();
         let mut game = game_state.lock().unwrap();
         game.init();
+        let _ = app_clone.emit("init:end", ());
+        println!("init:end");
     });
 }
 
