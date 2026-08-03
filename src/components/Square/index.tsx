@@ -7,7 +7,7 @@ type Props = {
     piece: PieceType | null;
     idx: number;
     boardRef: React.RefObject<HTMLDivElement | null>;
-    updateBoard: (from: string, to: string) => void;
+    updateBoard: (from: string, to: string) => Promise<void>;
     boardVersion: number;
     setBoardVersion: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -33,7 +33,7 @@ const Square = ({
     const rank = Math.floor(idx / 8);
     const isLight = (file + rank) % 2 === 0;
 
-    const onDragEnd = (event, info) => {
+    const onDragEnd = async (event, info) => {
         const boardRect = boardRef.current?.getBoundingClientRect();
         if (!boardRect) return;
 
@@ -53,7 +53,7 @@ const Square = ({
             return; // dropped off board — piece will spring back automatically
         }
 
-        const targetSquare = `${FILES[7 - fileIdx]}${8 - rankIdx}`;
+        const targetSquare = `${FILES[fileIdx]}${8 - rankIdx}`;
 
         console.log(targetSquare, square);
 
@@ -62,7 +62,7 @@ const Square = ({
             return;
         }
         // call your move logic here, e.g. updateBoard(currentSquare, targetSquare)
-        updateBoard(square, targetSquare);
+        await updateBoard(square, targetSquare);
         setBoardVersion((prev) => prev + 1);
         return;
     };

@@ -139,9 +139,9 @@ impl Board {
                 captured_board ^ (1u64 << move_info.to());
         };
 
-        let piece_board = self.pieces[self.player_turn as usize][move_info.from() as usize];
+        let piece_board = self.pieces[self.player_turn as usize][move_info.piece() as usize];
 
-        self.pieces[self.player_turn as usize][move_info.from() as usize] =
+        self.pieces[self.player_turn as usize][move_info.piece() as usize] =
             piece_board ^ ((1u64 << move_info.from()) | 1u64 << move_info.to());
 
         self.set_occupency();
@@ -149,7 +149,13 @@ impl Board {
         self.player_turn ^= 1;
     }
 
-    pub fn undo_move(&mut self) {}
+    pub fn undo_move(&mut self) {
+        let undo = self.history.pop().unwrap();
+        self._move = undo.mv;
+        self.castling_rights = undo.castling_rights;
+        self.en_passant_square = undo.en_passant_square;
+        self.halfmove_clock = undo.halfmove_clock;
+    }
 
     pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
         if self.is_game_over() {
@@ -208,10 +214,13 @@ impl Board {
         if piece_idx > 5 {
             return Err(CommandError::EmptySquare { square: from });
         }
+        println!("piece_idx: {}", piece_idx);
         let piece_type = PieceKind::from_idx(piece_idx);
 
+        println!("from: {}, to: {}, piece_type: {:?}", from, to, piece_type);
         // --- Legality check ---
         if !self.validate_move(piece_type, from, to) {
+            println!("Invalid move");
             return Ok(Legality::Illegal);
         }
 
@@ -232,6 +241,7 @@ impl Board {
             // Target square is occupied by an enemy piece - capture move
             let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
             if captured_piece_idx > 5 {
+                println!("captured_piece_idx: {}", captured_piece_idx);
                 return Ok(Legality::Illegal);
             }
             let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
@@ -247,14 +257,14 @@ impl Board {
             self.total_occupency,
             from as usize,
             self.player_turn,
-            self.color_occupency[!self.player_turn as usize],
+            self.color_occupency[(self.player_turn ^ 1) as usize],
             self.color_occupency[self.player_turn as usize],
         );
 
-        let current_move = (from as u64) | (to as u64);
+        let current_move = (1u64 << from) | (1u64 << to);
 
         if let Some(possible_moves) = possible_moves {
-            if (possible_moves & current_move) == current_move {
+            if (possible_moves & current_move) == (1u64 << to) {
                 return true;
             }
         }
@@ -369,7 +379,6 @@ impl Board {
         let mut all_moves = Vec::new();
         for piece_idx in 0..6 {
             let piece_type = PieceKind::from_idx(piece_idx);
-            println!("piece_type: {:?}", piece_type);
             let mut bb = self.pieces[color as usize][piece_idx];
             while bb.0 != 0 {
                 let sq = match bb.pop_lsb() {

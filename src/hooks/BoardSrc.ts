@@ -38,8 +38,8 @@ export function useBoard() {
     }, [sync]);
 
     const updateBoard = useCallback(
-        (from: string, to: string) => {
-            boardRef.current.updateBoard(from, to);
+        async (from: string, to: string) => {
+            await boardRef.current.updateBoard(from, to);
             sync();
         },
         [sync],

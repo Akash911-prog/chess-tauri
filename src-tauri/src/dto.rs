@@ -6,6 +6,7 @@ use tauri::{AppHandle, Emitter, Listener, Manager};
 use crate::engine::game::Game;
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MoveInfo {
     pub from: String,
     pub to: String,
@@ -55,7 +56,6 @@ pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), CommandErro
 
 #[tauri::command]
 pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandError> {
-    println!("{:?}", move_info);
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 
@@ -68,6 +68,16 @@ pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandEr
 pub fn show_window(app: AppHandle) -> Result<(), CommandError> {
     app.get_webview_window("main").unwrap().show().unwrap();
     return Ok(());
+}
+
+#[tauri::command]
+pub fn undo_move(app: AppHandle) -> Result<(), CommandError> {
+    let game_state = app.state::<Mutex<Game>>();
+    let game = game_state.lock().unwrap();
+
+    let mut board = game.board.lock().unwrap();
+    board.undo_move();
+    Ok(())
 }
 
 // ----------------------------

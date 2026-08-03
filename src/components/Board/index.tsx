@@ -17,7 +17,13 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
 
     const [boardVersion, setBoardVersion] = useState(0);
 
-    console.log(board);
+    const entries = Object.entries(board);
+
+    const ordered = [];
+
+    for (let i = 56; i >= 0; i -= 8) {
+        ordered.push(...entries.slice(i, i + 8));
+    }
 
     return (
         <div
@@ -25,20 +31,18 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
             ref={boardRef}
         >
             {board &&
-                Object.entries(board)
-                    .reverse()
-                    .map(([square, piece], idx) => (
-                        <Square
-                            key={square}
-                            square={square}
-                            piece={piece}
-                            idx={idx}
-                            boardRef={boardRef}
-                            updateBoard={updateBoard}
-                            boardVersion={boardVersion}
-                            setBoardVersion={setBoardVersion}
-                        />
-                    ))}
+                ordered.map(([square, piece], idx) => (
+                    <Square
+                        key={square}
+                        square={square}
+                        piece={piece}
+                        idx={idx}
+                        boardRef={boardRef}
+                        updateBoard={updateBoard}
+                        boardVersion={boardVersion}
+                        setBoardVersion={setBoardVersion}
+                    />
+                ))}
         </div>
     );
 };

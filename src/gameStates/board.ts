@@ -1,5 +1,7 @@
+import { invoke } from "@tauri-apps/api/core";
 import { Piece } from "../types";
 import { INITIAL_BOARD } from "./constants";
+import { MoveInfo } from "../dto";
 
 class Board {
     private _board: Record<string, Piece | null>;
@@ -47,14 +49,32 @@ class Board {
         this._board = {};
     }
 
-    updateBoard(from: string, to: string): void {
+    async updateBoard(from: string, to: string): Promise<void> {
+        let legal = await this.checkMove(from, to);
+        console.log(legal);
+        if (!legal) {
+            return;
+        }
         this.prevboardStack.push({ ...this._board });
         this._board[to] = this._board[from];
         this._board[from] = null;
     }
 
-    private checkMove(from: string, to: string) {}
+    private async checkMove(from: string, to: string): Promise<boolean> {
+        const moveInfo: MoveInfo = { from, to };
 
+        try {
+            const result = await invoke<"Legal" | "Illegal">("update", {
+                moveInfo,
+            });
+
+            console.log(result);
+            return result === "Legal";
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    }
     undoMove(): void {
         if (this.prevboardStack.length === 0) return;
         this._board = this.prevboardStack.pop() as Record<string, Piece | null>;

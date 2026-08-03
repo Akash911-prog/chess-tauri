@@ -21,7 +21,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             dto::get_legal_moves,
             dto::update,
-            dto::show_window
+            dto::show_window,
+            dto::undo_move
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -54,16 +54,18 @@ impl MoveGen {
                 return Some(possible_moves);
             }
             Pawn => {
-                // self._debug(color);
-                let mut possible_double_pushes = BitBoard(0);
-                let possible_single_pushes = self.pawn_push_single[color as usize][idx] & !occupied;
-                if possible_single_pushes != 0 {
-                    possible_double_pushes = self.pawn_push_double[color as usize][idx] & !occupied;
-                }
-                let possible_attacks = self.pawn_attack[color as usize][idx] & enemy;
-                let possible_pushes = possible_single_pushes | possible_double_pushes;
+                let single = self.pawn_push_single[color as usize][idx] & !occupied;
 
-                return Some(possible_attacks | possible_pushes);
+                let mut moves = single;
+
+                if single != 0 {
+                    let double = self.pawn_push_double[color as usize][idx] & !occupied;
+
+                    moves |= double;
+                }
+
+                moves |= self.pawn_attack[color as usize][idx] & enemy;
+                return Some(moves);
             }
             Rook => {
                 let possible_moves = self.get_rook_attacks(idx, occupied) & !friendly;
