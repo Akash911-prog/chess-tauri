@@ -13,7 +13,7 @@ pub struct MoveInfo {
     pub promotion: Option<PromotionPiece>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PromotionPiece {
     Q,
@@ -30,9 +30,10 @@ pub struct GetLegalMovesParams {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", content = "data")]
 pub enum Legality {
-    Legal = 0,
-    Illegal = 1,
+    Legal(bool, (String, String)),
+    Illegal,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +78,15 @@ pub fn undo_move(app: AppHandle) -> Result<(), CommandError> {
 
     let mut board = game.board.lock().unwrap();
     board.undo_move();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restart(app: AppHandle) -> Result<(), CommandError> {
+    println!("restart");
+    let game_state = app.state::<Mutex<Game>>();
+    let mut game = game_state.lock().unwrap();
+    game.restart();
     Ok(())
 }
 

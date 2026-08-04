@@ -20,8 +20,13 @@ impl Game {
         } // guard dropped here
 
         let mut board = self.board.lock().unwrap();
-        board.set_occupency();
+        board.init();
     } // guard dropped here
+
+    pub fn restart(&mut self) {
+        let mut board = self.board.lock().unwrap();
+        board.reset();
+    }
 }
 
 impl Default for Game {

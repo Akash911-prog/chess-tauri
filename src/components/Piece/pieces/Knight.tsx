@@ -6,10 +6,10 @@ import { Color } from "../../../types";
 const Knight = ({ color }: { color: Color }) => {
     switch (color) {
         case Color.White:
-            return <KnightWhite width={128} height={128} />;
+            return <KnightWhite width={100} height={100} />;
         case Color.Black:
             return (
-                <KnightBlack className="rotate-180" width={128} height={128} />
+                <KnightBlack className="rotate-180" width={100} height={100} />
             );
     }
 };

@@ -43,6 +43,7 @@ impl MoveGen {
         color: u8,
         enemy: BitBoard,
         friendly: BitBoard,
+        attack_only: bool,
     ) -> Option<BitBoard> {
         match piece {
             Knight => {
@@ -65,6 +66,9 @@ impl MoveGen {
                 }
 
                 moves |= self.pawn_attack[color as usize][idx] & enemy;
+                if attack_only {
+                    return Some(self.pawn_attack[color as usize][idx] & enemy);
+                }
                 return Some(moves);
             }
             Rook => {
@@ -310,6 +314,11 @@ impl MoveFlag {
     #[inline(always)]
     pub fn bits(self) -> u16 {
         (self as u16) << 12
+    }
+
+    #[inline(always)]
+    pub fn from_bits(bits: u16) -> MoveFlag {
+        unsafe { std::mem::transmute(bits >> 12) }
     }
 }
 

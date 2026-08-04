@@ -7,10 +7,10 @@ fn legal_test() {
     {
         let mut board = game.board.lock().unwrap();
         board.move_gen.generate_moves();
-        board.set_occupency();
+        board.init();
     }
 
-    let legal_moves = game.board.lock().unwrap().get_all_legal_moves();
+    let legal_moves = game.board.lock().unwrap().get_all_legal_moves(0, false);
 
     legal_moves.iter().enumerate().for_each(|(i, bb)| {
         println!("{}: {}", i, bb);

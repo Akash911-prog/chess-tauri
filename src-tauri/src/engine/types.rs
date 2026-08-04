@@ -17,11 +17,20 @@ pub enum PieceKind {
     King = 5,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CastlingRights {
-    King,
-    Queen,
-    Both,
+    WhiteQueenside = 0x04,
+    WhiteKingside = 0x08,
+
+    BlackQueenside = 0x01,
+    BlackKingside = 0x02,
+}
+
+impl CastlingRights {
+    pub fn bits(self) -> u8 {
+        self as u8
+    }
 }
 
 impl PieceKind {

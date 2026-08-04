@@ -8,7 +8,7 @@ class Board {
     private _prevboardStack: Record<string, Piece | null>[];
 
     constructor() {
-        this._board = INITIAL_BOARD;
+        this._board = { ...INITIAL_BOARD };
         this._prevboardStack = [];
     }
 
@@ -29,8 +29,9 @@ class Board {
     }
 
     reset(): void {
-        this._board = INITIAL_BOARD;
+        this._board = { ...INITIAL_BOARD };
         this._prevboardStack = [];
+        invoke("restart");
     }
 
     getPiece(square: string): Piece | null {
@@ -52,32 +53,44 @@ class Board {
     async updateBoard(from: string, to: string): Promise<void> {
         let legal = await this.checkMove(from, to);
         console.log(legal);
-        if (!legal) {
+        if (!legal[0]) {
             return;
         }
         this.prevboardStack.push({ ...this._board });
+        if (legal[1] && legal[1][0]) {
+            let from = legal[1][1][0];
+            let to = legal[1][1][1];
+            this._board[to] = this._board[from];
+            this._board[from] = null;
+        }
         this._board[to] = this._board[from];
         this._board[from] = null;
     }
 
-    private async checkMove(from: string, to: string): Promise<boolean> {
+    private async checkMove(
+        from: string,
+        to: string,
+    ): Promise<[boolean, [boolean, [string, string]] | null]> {
         const moveInfo: MoveInfo = { from, to };
 
         try {
-            const result = await invoke<"Legal" | "Illegal">("update", {
+            const result = await invoke<
+                | { kind: string; data: Array<boolean | Array<string>> }
+                | { kind: string }
+            >("update", {
                 moveInfo,
             });
 
-            console.log(result);
-            return result === "Legal";
+            return [result.kind === "Legal", result.data ? result.data : null];
         } catch (error) {
             console.error(error);
-            return false;
+            return [false, null];
         }
     }
     undoMove(): void {
         if (this.prevboardStack.length === 0) return;
         this._board = this.prevboardStack.pop() as Record<string, Piece | null>;
+        invoke("undo_move");
     }
 }
 
