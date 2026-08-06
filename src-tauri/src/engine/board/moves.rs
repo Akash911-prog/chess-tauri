@@ -1,0 +1,283 @@
+use crate::{
+    dto::{MoveType, Response},
+    engine::{
+        history::Undo,
+        movegen::{Move, MoveFlag},
+        types::PieceKind,
+    },
+};
+
+impl super::Board {
+    /// Applies a validated move to the board.
+    ///
+    /// Creates an [`Undo`] record before modifying the position, then handles
+    /// special moves such as castling, captures, pawn double pushes, and
+    /// en passant target-square updates.
+    ///
+    /// The board occupancy caches and enemy attack mask are recalculated after
+    /// the piece bitboards are modified.
+    ///
+    /// # Arguments
+    ///
+    /// * `move_info` - The packed [`Move`] describing the move to perform.
+    pub fn make_move(&mut self, move_info: Move) -> Response {
+        let undo = Undo::new(
+            move_info,
+            self.castling_rights,
+            self.en_passant_square,
+            self.halfmove_clock,
+        );
+
+        if (move_info.flags() & MoveFlag::EpCapture.bits()) == MoveFlag::EpCapture.bits() {
+            let response = self.do_ep_capture(move_info);
+            return response;
+        }
+
+        if (move_info.flags() & MoveFlag::KingCastle.bits() == MoveFlag::KingCastle.bits())
+            || (move_info.flags() & MoveFlag::QueenCastle.bits() == MoveFlag::QueenCastle.bits())
+        {
+            let response = self.do_castle(move_info);
+            return response;
+        }
+
+        self.history.push(undo);
+
+        self.castling_rights = self.get_castling_rights(move_info);
+        if (move_info.piece() == 0)
+            && ((move_info.flags() & MoveFlag::DoublePush.bits()) == MoveFlag::DoublePush.bits())
+        {
+            self.en_passant_square = if self.player_turn == 0 {
+                move_info.from() + 8
+            } else {
+                move_info.from() - 8
+            }
+        };
+
+        if (move_info.captured_piece() > 5) || (move_info.piece() == 0) {
+            self.halfmove_clock = 0;
+        } else {
+            self.halfmove_clock += 1;
+        };
+
+        if move_info.captured_piece() <= 5 {
+            let captured_board =
+                self.pieces[(self.player_turn ^ 1) as usize][move_info.captured_piece() as usize];
+
+            self.pieces[(self.player_turn ^ 1) as usize][move_info.captured_piece() as usize] =
+                captured_board ^ (1u64 << move_info.to());
+        };
+
+        let piece_board = self.pieces[self.player_turn as usize][move_info.piece() as usize];
+
+        self.pieces[self.player_turn as usize][move_info.piece() as usize] =
+            piece_board ^ ((1u64 << move_info.from()) | 1u64 << move_info.to());
+
+        self.init();
+
+        self.player_turn ^= 1;
+        self.fullmove_clock += 1;
+
+        println!("ep: {}", self.en_passant_square);
+
+        Response {
+            move_type: MoveType::Normal,
+            from: self.index_to_notation(move_info.from()),
+            to: self.index_to_notation(move_info.to()),
+            promotion: None,
+        }
+    }
+
+    fn do_ep_capture(&mut self, mv: Move) -> Response {
+        let capturing_idx = if (self.player_turn ^ 1) == 0 {
+            mv.to() + 8
+        } else {
+            mv.to() - 8
+        };
+
+        self.pieces[(self.player_turn ^ 1) as usize][PieceKind::Pawn as usize] ^=
+            1u64 << capturing_idx;
+
+        self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^=
+            (1u64 << mv.from()) | (1u64 << mv.to());
+
+        self.init();
+        self.player_turn ^= 1;
+        self.fullmove_clock += 1;
+
+        let from = self.index_to_notation(64);
+        let to = self.index_to_notation(capturing_idx);
+
+        Response {
+            move_type: MoveType::EnPassant,
+            from,
+            to,
+            promotion: None,
+        }
+    }
+
+    /// Executes the board changes required for a castling move.
+    ///
+    /// This function is responsible for moving both the king and the rook
+    /// when a castling move is performed.
+    ///
+    /// # Arguments
+    ///
+    /// * `mv` - The [`Move`] containing the castling move information.
+    fn do_castle(&mut self, mv: Move) -> Response {
+        let color = self.player_turn as usize;
+        let rook_board = self.pieces[color][PieceKind::Rook as usize];
+
+        // Move the king from its original square to its castling square.
+        self.pieces[color][PieceKind::King as usize] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+
+        let (from, to) = match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::KingCastle => {
+                if color == 0 {
+                    // White: h1 -> f1
+                    self.pieces[color][PieceKind::Rook as usize] =
+                        rook_board ^ ((1u64 << 7) | (1u64 << 5));
+
+                    // Remove White kingside castling right (K = 0x08).
+                    self.castling_rights &= 0x07;
+
+                    (7, 5)
+                } else {
+                    // Black: h8 -> f8
+                    self.pieces[color][PieceKind::Rook as usize] =
+                        rook_board ^ ((1u64 << 63) | (1u64 << 61));
+
+                    // Remove Black kingside castling right (k = 0x02).
+                    self.castling_rights &= 0x0D;
+
+                    (63u8, 61u8)
+                }
+            }
+
+            MoveFlag::QueenCastle => {
+                if color == 0 {
+                    // White: a1 -> d1
+                    self.pieces[color][PieceKind::Rook as usize] =
+                        rook_board ^ ((1u64 << 0) | (1u64 << 3));
+
+                    // Remove White queenside castling right (Q = 0x04).
+                    self.castling_rights &= 0x0B;
+
+                    (0, 3)
+                } else {
+                    // Black: a8 -> d8
+                    self.pieces[color][PieceKind::Rook as usize] =
+                        rook_board ^ ((1u64 << 56) | (1u64 << 59));
+
+                    // Remove Black queenside castling right (q = 0x01).
+                    self.castling_rights &= 0x0E;
+
+                    (56, 59)
+                }
+            }
+
+            _ => (65, 65),
+        };
+
+        self.init();
+        self.player_turn ^= 1;
+        self.fullmove_clock += 1;
+
+        let from = self.index_to_notation(from);
+        let to = self.index_to_notation(to);
+
+        Response {
+            move_type: MoveType::Castling,
+            from,
+            to,
+            promotion: None,
+        }
+    }
+
+    /// Reverts the most recently recorded move.
+    ///
+    /// Restores the game-state information stored in the most recent
+    /// [`Undo`] record, including:
+    /// - Castling rights.
+    /// - En passant square.
+    /// - Halfmove clock.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the history stack is empty because `unwrap()` is used.
+    ///
+    /// # Note
+    ///
+    /// This currently restores only the stored metadata. The piece bitboards,
+    /// player turn, and other position data are not restored here yet.
+    pub fn undo_move(&mut self) {
+        let undo = self.history.pop().unwrap();
+        self.castling_rights = undo.castling_rights;
+        self.en_passant_square = undo.en_passant_square;
+        self.halfmove_clock = undo.halfmove_clock;
+        self.zobrist_hash = undo.zobrist_hash;
+
+        let mv = undo.mv;
+        self.player_turn ^= 1;
+
+        if mv.captured_piece() <= 5 {
+            let captured_board =
+                self.pieces[(self.player_turn ^ 1) as usize][mv.captured_piece() as usize];
+
+            self.pieces[(self.player_turn ^ 1) as usize][mv.captured_piece() as usize] =
+                captured_board ^ (1u64 << mv.to());
+        }
+
+        self.pieces[self.player_turn as usize][mv.piece() as usize] = self.pieces
+            [self.player_turn as usize][mv.piece() as usize]
+            ^ ((1u64 << mv.from()) | 1u64 << mv.to());
+
+        self.fullmove_clock -= 1;
+
+        self.init();
+    }
+
+    /// Returns the castling rights for the current position.
+    ///
+    /// # Returns
+    ///
+    /// A `u8` bitmask representing the available castling rights.
+    ///
+    /// # Note
+    ///
+    /// The current implementation always returns `0x0F`.
+    fn get_castling_rights(&self, mv: Move) -> u8 {
+        let piece = PieceKind::from_idx(mv.piece() as usize);
+
+        match piece {
+            PieceKind::King => {
+                if self.player_turn == 0 {
+                    // White king moved: remove K and Q.
+                    0x03
+                } else {
+                    // Black king moved: remove k and q.
+                    0x0C
+                }
+            }
+
+            PieceKind::Rook => {
+                match self.player_turn {
+                    0 => match mv.from() {
+                        0 => 0x0B, // White rook a1 -> remove Q
+                        7 => 0x07, // White rook h1 -> remove K
+                        _ => 0x0F, // Other white rook
+                    },
+
+                    1 => match mv.from() {
+                        56 => 0x0E, // Black rook a8 -> remove q
+                        63 => 0x0D, // Black rook h8 -> remove k
+                        _ => 0x0F,  // Other black rook
+                    },
+
+                    _ => 0x0F,
+                }
+            }
+
+            _ => 0x0F,
+        }
+    }
+}

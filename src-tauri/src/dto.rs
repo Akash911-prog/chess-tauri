@@ -32,8 +32,26 @@ pub struct GetLegalMovesParams {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", content = "data")]
 pub enum Legality {
-    Legal(bool, (String, String)),
+    Legal(Response),
     Illegal,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MoveType {
+    Normal,
+    Castling,
+    Promotion,
+    EnPassant,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Response {
+    pub move_type: MoveType,
+    pub from: String,
+    pub to: String,
+    pub promotion: Option<PromotionPiece>,
 }
 
 #[derive(Debug, Serialize)]

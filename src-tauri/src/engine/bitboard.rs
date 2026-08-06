@@ -4,21 +4,13 @@ use std::ops::{
     ShlAssign, Shr, ShrAssign,
 };
 
+use crate::engine::constants::{FILE_A, FILE_H};
 use crate::engine::types::{Color, PieceKind};
 
 /// Represents a 64-square chessboard as a 64-bit integer bitboard.
 /// Bit 0 = A1, Bit 63 = H8.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct BitBoard(pub u64);
-
-// File masks to prevent board wrap-around during shifts
-pub const FILE_A: u64 = 0x0101_0101_0101_0101;
-pub const FILE_B: u64 = FILE_A << 1;
-pub const FILE_G: u64 = FILE_A << 6;
-pub const FILE_H: u64 = FILE_A << 7;
-
-pub const FILE_AB: u64 = FILE_A | FILE_B;
-pub const FILE_GH: u64 = FILE_G | FILE_H;
 
 impl BitBoard {
     pub const EMPTY: Self = BitBoard(0);

@@ -2,7 +2,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 use crate::engine::{
-    bitboard::{BitBoard, FILE_A, FILE_AB, FILE_GH, FILE_H},
+    bitboard::BitBoard,
+    constants::{FILE_A, FILE_AB, FILE_GH, FILE_H},
     types::PieceKind::{self, Bishop, King, Knight, Pawn, Queen, Rook},
 };
 
@@ -83,7 +84,6 @@ impl MoveGen {
                 let possible_moves = self.get_queen_attacks(idx, occupied) & !friendly;
                 return Some(possible_moves);
             }
-            _ => return None,
         }
     }
 
@@ -332,10 +332,6 @@ pub struct Move {
 impl Move {
     pub fn new(move_mask: u16, piece: u8) -> Move {
         Move { move_mask, piece }
-    }
-
-    pub fn move_mask(&self) -> u16 {
-        self.move_mask
     }
 
     pub fn from(&self) -> u8 {

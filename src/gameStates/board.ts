@@ -52,17 +52,21 @@ class Board {
 
     async updateBoard(from: string, to: string): Promise<void> {
         let legal = await this.checkMove(from, to);
-        console.log(legal);
+        console.log(legal); // [true, [true, ["e2", "e4"]]]
         if (!legal[0]) {
             return;
         }
         this.prevboardStack.push({ ...this._board });
-        if (legal[1] && legal[1][0]) {
-            let from = legal[1][1][0];
-            let to = legal[1][1][1];
-            this._board[to] = this._board[from];
-            this._board[from] = null;
+        let data = legal[1];
+        if (data?.moveType == "castling") {
+            this._board[data.to] = this._board[data.from];
+            this._board[data.from] = null;
         }
+
+        if (data?.moveType == "enPassant") {
+            this._board[data.to] = null;
+        }
+
         this._board[to] = this._board[from];
         this._board[from] = null;
     }
@@ -70,13 +74,13 @@ class Board {
     private async checkMove(
         from: string,
         to: string,
-    ): Promise<[boolean, [boolean, [string, string]] | null]> {
+    ): Promise<[boolean, Response | null]> {
         const moveInfo: MoveInfo = { from, to };
 
         try {
             const result = await invoke<
-                | { kind: string; data: Array<boolean | Array<string>> }
-                | { kind: string }
+                | { kind: string; data: Response }
+                | { kind: string; data: undefined }
             >("update", {
                 moveInfo,
             });
@@ -93,5 +97,12 @@ class Board {
         invoke("undo_move");
     }
 }
+
+type Response = {
+    moveType: "normal" | "castling" | "promotion" | "enPassant";
+    from: string;
+    to: string;
+    promotion: string | null;
+};
 
 export default Board;
