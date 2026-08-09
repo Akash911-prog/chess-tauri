@@ -21,6 +21,10 @@ impl super::Board {
     /// `true` if the destination is present in the generated move set,
     /// otherwise `false`.
     pub fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
+        if !self.validate_move_with_check(from, to) {
+            return false;
+        }
+
         if (piece_type == PieceKind::Pawn) && (to == self.en_passant_square) {
             return self.validate_ep(from, to);
         }

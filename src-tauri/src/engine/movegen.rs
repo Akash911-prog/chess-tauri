@@ -47,44 +47,48 @@ impl MoveGen {
         attack_only: bool,
     ) -> Option<BitBoard> {
         match piece {
-            Knight => {
-                let possible_moves = self.knight_moves[idx] & !friendly;
-                return Some(possible_moves);
-            }
-            King => {
-                let possible_moves = self.king_moves[idx] & !friendly;
-                return Some(possible_moves);
-            }
-            Pawn => {
-                let single = self.pawn_push_single[color as usize][idx] & !occupied;
-
-                let mut moves = single;
-
-                if single != 0 {
-                    let double = self.pawn_push_double[color as usize][idx] & !occupied;
-
-                    moves |= double;
-                }
-
-                moves |= self.pawn_attack[color as usize][idx] & enemy;
-                if attack_only {
-                    return Some(self.pawn_attack[color as usize][idx] & enemy);
-                }
-                return Some(moves);
-            }
-            Rook => {
-                let possible_moves = self.get_rook_attacks(idx, occupied) & !friendly;
-                return Some(possible_moves);
-            }
-            Bishop => {
-                let possible_moves = self.get_bishop_attacks(idx, occupied) & !friendly;
-                return Some(possible_moves);
-            }
-            Queen => {
-                let possible_moves = self.get_queen_attacks(idx, occupied) & !friendly;
-                return Some(possible_moves);
-            }
+            Knight => self.get_knight_moves(idx, friendly),
+            King => self.get_king_attacks(idx, friendly),
+            Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only),
+            Rook => self.get_rook_moves(idx, friendly),
+            Bishop => self.get_bishop_moves(idx, friendly),
+            Queen => self.get_queen_moves(idx, friendly),
         }
+    }
+
+    pub fn get_knight_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
+        let possible_moves = self.knight_moves[idx] & !friendly;
+        Some(possible_moves)
+    }
+
+    pub fn get_king_attacks(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
+        let possible_moves = self.king_moves[idx] & !friendly;
+        Some(possible_moves)
+    }
+
+    pub fn get_pawn_attacks(
+        &self,
+        idx: usize,
+        color: u8,
+        occupied: BitBoard,
+        enemy: BitBoard,
+        attack_only: bool,
+    ) -> Option<BitBoard> {
+        let single = self.pawn_push_single[color as usize][idx] & !occupied;
+
+        let mut moves = single;
+
+        if single != 0 {
+            let double = self.pawn_push_double[color as usize][idx] & !occupied;
+
+            moves |= double;
+        }
+
+        moves |= self.pawn_attack[color as usize][idx] & enemy;
+        if attack_only {
+            return Some(self.pawn_attack[color as usize][idx] & enemy);
+        }
+        return Some(moves);
     }
 
     fn _debug(&self, color: u8) {
@@ -183,7 +187,7 @@ impl MoveGen {
         }
     }
 
-    pub fn get_rook_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
+    pub fn gen_rook_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
         let mut attacks = 0u64;
 
         // 1. UP (+8)
@@ -238,7 +242,7 @@ impl MoveGen {
     }
 
     /// Generates attacks for a Bishop on `sq` considering all `occupied` pieces on the board.
-    pub fn get_bishop_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
+    pub fn gen_bishop_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
         let mut attacks = 0u64;
 
         // 1. UP-RIGHT (+9)
@@ -289,8 +293,20 @@ impl MoveGen {
     }
 
     /// Queen attacks are simply Rook attacks OR Bishop attacks!
-    pub fn get_queen_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
-        self.get_rook_attacks(sq, occupied) | self.get_bishop_attacks(sq, occupied)
+    pub fn gen_queen_attacks(&self, sq: usize, occupied: BitBoard) -> u64 {
+        self.gen_rook_attacks(sq, occupied) | self.gen_bishop_attacks(sq, occupied)
+    }
+
+    pub fn get_bishop_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
+        Some(self.gen_bishop_attacks(idx, friendly) & !friendly)
+    }
+
+    pub fn get_rook_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
+        Some(self.gen_rook_attacks(idx, friendly) & !friendly)
+    }
+
+    pub fn get_queen_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
+        Some(self.gen_queen_attacks(idx, friendly) & !friendly)
     }
 }
 
