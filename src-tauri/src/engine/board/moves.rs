@@ -28,6 +28,8 @@ impl super::Board {
             self.halfmove_clock,
         );
 
+        self.init();
+
         if (move_info.flags() & MoveFlag::EpCapture.bits()) == MoveFlag::EpCapture.bits() {
             let response = self.do_ep_capture(move_info);
             return response;
@@ -72,8 +74,6 @@ impl super::Board {
         self.pieces[self.player_turn as usize][move_info.piece() as usize] =
             piece_board ^ ((1u64 << move_info.from()) | 1u64 << move_info.to());
 
-        self.init();
-
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
@@ -100,7 +100,6 @@ impl super::Board {
         self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^=
             (1u64 << mv.from()) | (1u64 << mv.to());
 
-        self.init();
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
@@ -178,7 +177,6 @@ impl super::Board {
             _ => (65, 65),
         };
 
-        self.init();
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 

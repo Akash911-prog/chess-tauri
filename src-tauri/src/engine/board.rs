@@ -1,4 +1,5 @@
 pub mod check;
+pub mod from_fen;
 pub mod moves;
 pub mod validation;
 
@@ -290,7 +291,7 @@ impl Board {
     /// The resulting mask is stored in `enemy_attack_mask` and is used,
     /// among other things, when validating king moves and castling.
     fn update_enemy_attack_mask(&mut self) {
-        let enemy_possible_moves = self.get_all_legal_moves(self.player_turn, true);
+        let enemy_possible_moves = self.get_all_legal_moves(self.player_turn ^ 1, true);
         let mask: BitBoard = enemy_possible_moves
             .iter()
             .fold(BitBoard::EMPTY, |acc, &x| acc | x);
