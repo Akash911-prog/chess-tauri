@@ -26,6 +26,7 @@ impl Game {
     pub fn restart(&mut self) {
         let mut board = self.board.lock().unwrap();
         board.reset();
+        board.init();
     }
 }
 

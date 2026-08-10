@@ -75,10 +75,10 @@ impl super::Board {
         if castling != "-" {
             for ch in castling.chars() {
                 castling_rights |= match ch {
-                    'K' => 0b0001,
-                    'Q' => 0b0010,
-                    'k' => 0b0100,
-                    'q' => 0b1000,
+                    'K' => 0b1000,
+                    'Q' => 0b0100,
+                    'k' => 0b0010,
+                    'q' => 0b0001,
                     other => panic!("unrecognized castling char '{}'", other),
                 };
             }

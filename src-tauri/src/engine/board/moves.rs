@@ -28,30 +28,30 @@ impl super::Board {
             self.halfmove_clock,
         );
 
-        if (move_info.flags() & MoveFlag::EpCapture.bits()) == MoveFlag::EpCapture.bits() {
+        self.history.push(undo);
+
+        if move_info.flags() == MoveFlag::EpCapture.bits() {
             let response = self.do_ep_capture(move_info);
             return response;
         }
 
-        if (move_info.flags() & MoveFlag::KingCastle.bits() == MoveFlag::KingCastle.bits())
-            || (move_info.flags() & MoveFlag::QueenCastle.bits() == MoveFlag::QueenCastle.bits())
+        if (move_info.flags() == MoveFlag::KingCastle.bits())
+            || (move_info.flags() == MoveFlag::QueenCastle.bits())
         {
             let response = self.do_castle(move_info);
             return response;
         }
 
-        self.history.push(undo);
-
-        self.castling_rights = self.get_castling_rights(move_info);
-        if (move_info.piece() == 0)
-            && ((move_info.flags() & MoveFlag::DoublePush.bits()) == MoveFlag::DoublePush.bits())
-        {
+        self.castling_rights &= self.get_castling_rights(move_info);
+        if (move_info.piece() == 0) && (move_info.flags() == MoveFlag::DoublePush.bits()) {
             self.en_passant_square = if self.player_turn == 0 {
                 move_info.from() + 8
             } else {
                 move_info.from() - 8
             }
-        };
+        } else {
+            self.en_passant_square = 64;
+        }
 
         if (move_info.captured_piece() > 5) || (move_info.piece() == 0) {
             self.halfmove_clock = 0;
@@ -258,10 +258,10 @@ impl super::Board {
             PieceKind::King => {
                 if self.player_turn == 0 {
                     // White king moved: remove K and Q.
-                    0x03
+                    0x0C
                 } else {
                     // Black king moved: remove k and q.
-                    0x0C
+                    0x03
                 }
             }
 

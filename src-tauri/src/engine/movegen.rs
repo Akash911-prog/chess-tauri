@@ -349,7 +349,19 @@ impl MoveFlag {
 
     #[inline(always)]
     pub fn from_bits(bits: u16) -> MoveFlag {
-        unsafe { std::mem::transmute(bits >> 12) }
+        match bits >> 12 {
+            0b0000 => MoveFlag::Quiet,
+            0b0001 => MoveFlag::DoublePush,
+            0b0010 => MoveFlag::KingCastle,
+            0b0011 => MoveFlag::QueenCastle,
+            0b0100 => MoveFlag::Capture,
+            0b0101 => MoveFlag::EpCapture,
+            0b1000 => MoveFlag::PromoQueen,
+            0b1001 => MoveFlag::PromoRook,
+            0b1010 => MoveFlag::PromoKnight,
+            0b1011 => MoveFlag::PromoBishop,
+            _ => unreachable!(),
+        }
     }
 }
 
