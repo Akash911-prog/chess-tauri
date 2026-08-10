@@ -46,7 +46,6 @@ impl super::Board {
 
         if let Some(possible_moves) = possible_moves {
             if (possible_moves & current_move) == (1u64 << to) {
-                println!("{}", self.enemy_attack_mask);
                 let check_info = self.check_for_check();
                 if check_info.is_check {
                     return self.validate_move_with_check(to, &check_info, piece_type);

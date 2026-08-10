@@ -7,10 +7,16 @@ class Board {
     private _board: Record<string, Piece | null>;
     private _prevboardStack: Record<string, Piece | null>[];
     public finished: boolean = false;
+    public condition: string = "inprogress";
+    public winColor: string = "";
+    public msg: Record<string, string> = {};
 
     constructor() {
         this._board = { ...INITIAL_BOARD };
         this._prevboardStack = [];
+        this.msg = {
+            stalemate: "Stalemate! It's a draw.",
+        };
     }
 
     get board(): Record<string, Piece | null> {
@@ -69,6 +75,10 @@ class Board {
         }
 
         if (data?.condition != "inprogress") {
+            this.condition = "checkmate";
+            this.winColor = data?.check;
+            this.msg["checkmate"] = `Checkmate! ${this.winColor} wins!`;
+
             this.finished = true;
             return;
         }
@@ -109,7 +119,7 @@ type Response = {
     to: string;
     promotion: string | null;
     condition: "inprogress" | "Draw" | "checkmate" | "stalemate";
-    check: number | null;
+    check: string;
 };
 
 export default Board;

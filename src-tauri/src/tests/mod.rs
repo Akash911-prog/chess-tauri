@@ -1,6 +1,5 @@
 use super::*;
 use crate::engine::{
-    bitboard::BitBoard,
     board::Board,
     movegen::{Move, MoveFlag},
     types::PieceKind,
@@ -40,9 +39,6 @@ fn check_test() {
     board.from_fen("8/8/8/8/8/6n1/8/r6K w - - 0 1");
 
     let check_info = board.check_for_check();
-
-    println!("{:?}", check_info);
-    println!("{}", board.total_occupency);
 
     assert_eq!(true, check_info.is_check);
 }

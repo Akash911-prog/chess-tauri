@@ -4,9 +4,19 @@ use crate::dto::PromotionPiece;
 
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Color {
     White = 0,
     Black = 1,
+}
+
+impl Color {
+    pub fn from(num: u8) -> Color {
+        match num {
+            0 => Color::White,
+            _ => Color::Black,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -56,6 +56,22 @@ export function useBoard() {
         sync();
     }, [sync]);
 
+    const setFinished = useCallback(
+        (flag: boolean) => {
+            boardRef.current.finished = flag;
+            sync();
+        },
+        [sync],
+    );
+
+    const getFinishedState = useCallback(() => {
+        return {
+            condition: boardRef.current.condition,
+            winColor: boardRef.current.winColor,
+            msg: boardRef.current.msg,
+        };
+    }, []);
+
     return {
         board,
         getPiece,
@@ -66,5 +82,7 @@ export function useBoard() {
         undoMove,
         reset,
         finished,
+        setFinished,
+        getFinishedState,
     };
 }

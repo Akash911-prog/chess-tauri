@@ -100,7 +100,6 @@ impl super::Board {
         check_info: &CheckInfo,
         piece_type: PieceKind,
     ) -> bool {
-        println!("{:?}", check_info);
         if (check_info.count >= 2) && (piece_type != PieceKind::King) {
             return false;
         }

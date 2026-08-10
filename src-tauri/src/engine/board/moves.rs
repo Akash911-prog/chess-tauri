@@ -3,7 +3,7 @@ use crate::{
     engine::{
         history::Undo,
         movegen::{Move, MoveFlag},
-        types::PieceKind,
+        types::{Color, PieceKind},
     },
 };
 
@@ -83,7 +83,7 @@ impl super::Board {
             to: self.index_to_notation(move_info.to()),
             promotion: None,
             condition: self.get_game_state(),
-            check: None,
+            check: Some(Color::from(self.player_turn ^ 1)),
         }
     }
 
@@ -114,7 +114,7 @@ impl super::Board {
             to,
             promotion: None,
             condition: self.get_game_state(),
-            check: None,
+            check: Some(Color::from(self.player_turn ^ 1)),
         }
     }
 
@@ -195,7 +195,7 @@ impl super::Board {
             to,
             promotion: None,
             condition: self.get_game_state(),
-            check: None,
+            check: Some(Color::from(self.player_turn ^ 1)),
         }
     }
 

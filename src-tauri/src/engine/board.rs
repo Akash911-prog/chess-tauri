@@ -4,7 +4,7 @@ pub mod moves;
 pub mod validation;
 
 use crate::{
-    dto::{CommandError, GameState, Legality, MoveInfo, PromotionPiece, Response},
+    dto::{CommandError, GameState, Legality, MoveInfo, PromotionPiece},
     engine::{
         bitboard::BitBoard,
         constants::INITIAL_BOARD,
@@ -272,7 +272,7 @@ impl Board {
                 println!("captured_piece_idx: {}", captured_piece_idx);
                 return Ok(Legality::Illegal);
             }
-            let captured_piece = ((captured_piece_idx as u8) << 4) | (captured_piece_idx as u8);
+            let captured_piece = ((captured_piece_idx as u8) << 4) | (piece_idx as u8);
             move_mask |= MoveFlag::Capture.bits();
             Move::new(move_mask, captured_piece)
         };

@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
+import GameOverModal from "../GameOverScreen";
+import { useNavigate } from "react-router";
 
 const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
     let {
@@ -10,9 +12,14 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
         removePiece,
         setPiece,
         undoMove,
+        reset,
         updateBoard,
         finished,
+        setFinished,
+        getFinishedState,
     } = boardData;
+
+    let navigate = useNavigate();
 
     const boardRef = useRef<HTMLDivElement>(null);
 
@@ -26,9 +33,7 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
         ordered.push(...entries.slice(i, i + 8));
     }
 
-    if (finished) {
-        return <h1 className="text-6xl">Game Over</h1>;
-    }
+    let { condition, msg } = getFinishedState();
 
     return (
         <div
@@ -48,6 +53,20 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
                         setBoardVersion={setBoardVersion}
                     />
                 ))}
+
+            <GameOverModal
+                isOpen={finished}
+                message={msg[condition]}
+                title={condition.toUpperCase()}
+                onRestart={() => {
+                    setFinished(false);
+                    reset();
+                }}
+                onMainMenu={() => {
+                    reset();
+                    navigate("/");
+                }}
+            />
         </div>
     );
 };
