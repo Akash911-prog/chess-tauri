@@ -1,8 +1,8 @@
-mod bitboard;
-mod board;
+pub mod bitboard;
+pub mod board;
 mod computer;
 pub mod constants;
 pub mod game;
 mod history;
-mod movegen;
-mod types;
+pub mod movegen;
+pub mod types;

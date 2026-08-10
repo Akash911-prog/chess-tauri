@@ -50,9 +50,9 @@ impl MoveGen {
             Knight => self.get_knight_moves(idx, friendly),
             King => self.get_king_attacks(idx, friendly),
             Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only),
-            Rook => self.get_rook_moves(idx, friendly),
-            Bishop => self.get_bishop_moves(idx, friendly),
-            Queen => self.get_queen_moves(idx, friendly),
+            Rook => self.get_rook_moves(idx, occupied, friendly),
+            Bishop => self.get_bishop_moves(idx, occupied, friendly),
+            Queen => self.get_queen_moves(idx, occupied, friendly),
         }
     }
 
@@ -297,16 +297,31 @@ impl MoveGen {
         self.gen_rook_attacks(sq, occupied) | self.gen_bishop_attacks(sq, occupied)
     }
 
-    pub fn get_bishop_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
-        Some(self.gen_bishop_attacks(idx, friendly) & !friendly)
+    pub fn get_bishop_moves(
+        &self,
+        idx: usize,
+        occupied: BitBoard,
+        friendly: BitBoard,
+    ) -> Option<BitBoard> {
+        Some(self.gen_bishop_attacks(idx, occupied) & !friendly)
     }
 
-    pub fn get_rook_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
-        Some(self.gen_rook_attacks(idx, friendly) & !friendly)
+    pub fn get_rook_moves(
+        &self,
+        idx: usize,
+        occupied: BitBoard,
+        friendly: BitBoard,
+    ) -> Option<BitBoard> {
+        Some(self.gen_rook_attacks(idx, occupied) & !friendly)
     }
 
-    pub fn get_queen_moves(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
-        Some(self.gen_queen_attacks(idx, friendly) & !friendly)
+    pub fn get_queen_moves(
+        &self,
+        idx: usize,
+        occupied: BitBoard,
+        friendly: BitBoard,
+    ) -> Option<BitBoard> {
+        Some(self.gen_queen_attacks(idx, occupied) & !friendly)
     }
 }
 

@@ -145,7 +145,13 @@ impl Board {
         self.color_occupency[1] = self.pieces[1].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
         self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
 
-        self.update_enemy_attack_mask();
+        self.update_enemy_attack_mask(self.player_turn ^ 1);
+    }
+
+    pub fn update_state(&mut self) {
+        self.color_occupency[0] = self.pieces[0].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.color_occupency[1] = self.pieces[1].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
     }
 
     /// Parses and validates a move received from the React frontend.
@@ -290,8 +296,8 @@ impl Board {
     ///
     /// The resulting mask is stored in `enemy_attack_mask` and is used,
     /// among other things, when validating king moves and castling.
-    fn update_enemy_attack_mask(&mut self) {
-        let enemy_possible_moves = self.get_all_legal_moves(self.player_turn ^ 1, true);
+    fn update_enemy_attack_mask(&mut self, color: u8) {
+        let enemy_possible_moves = self.get_all_legal_moves(color, true);
         let mask: BitBoard = enemy_possible_moves
             .iter()
             .fold(BitBoard::EMPTY, |acc, &x| acc | x);

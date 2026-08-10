@@ -47,7 +47,9 @@ impl PieceKind {
     }
 
     pub fn from_idx(int: usize) -> PieceKind {
-        debug_assert!(int < 6);
+        if int >= 6 {
+            return PieceKind::Pawn;
+        }
         PieceKind::from_idx_option(int).unwrap()
     }
 

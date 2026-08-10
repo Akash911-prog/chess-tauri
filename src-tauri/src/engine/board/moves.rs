@@ -28,8 +28,6 @@ impl super::Board {
             self.halfmove_clock,
         );
 
-        self.init();
-
         if (move_info.flags() & MoveFlag::EpCapture.bits()) == MoveFlag::EpCapture.bits() {
             let response = self.do_ep_capture(move_info);
             return response;
@@ -77,7 +75,11 @@ impl super::Board {
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        println!("ep: {}", self.en_passant_square);
+        self.update_state();
+        self.update_enemy_attack_mask(self.player_turn ^ 1);
+
+        println!("{}", self.total_occupency);
+        println!("{}", self.enemy_attack_mask);
 
         Response {
             move_type: MoveType::Normal,
@@ -105,6 +107,9 @@ impl super::Board {
 
         let from = self.index_to_notation(64);
         let to = self.index_to_notation(capturing_idx);
+
+        self.update_state();
+        self.update_enemy_attack_mask(self.player_turn ^ 1);
 
         Response {
             move_type: MoveType::EnPassant,
@@ -137,7 +142,7 @@ impl super::Board {
                         rook_board ^ ((1u64 << 7) | (1u64 << 5));
 
                     // Remove White kingside castling right (K = 0x08).
-                    self.castling_rights &= 0x07;
+                    self.castling_rights &= 0x03;
 
                     (7, 5)
                 } else {
@@ -146,7 +151,7 @@ impl super::Board {
                         rook_board ^ ((1u64 << 63) | (1u64 << 61));
 
                     // Remove Black kingside castling right (k = 0x02).
-                    self.castling_rights &= 0x0D;
+                    self.castling_rights &= 0x0C;
 
                     (63u8, 61u8)
                 }
@@ -159,7 +164,7 @@ impl super::Board {
                         rook_board ^ ((1u64 << 0) | (1u64 << 3));
 
                     // Remove White queenside castling right (Q = 0x04).
-                    self.castling_rights &= 0x0B;
+                    self.castling_rights &= 0x03;
 
                     (0, 3)
                 } else {
@@ -168,7 +173,7 @@ impl super::Board {
                         rook_board ^ ((1u64 << 56) | (1u64 << 59));
 
                     // Remove Black queenside castling right (q = 0x01).
-                    self.castling_rights &= 0x0E;
+                    self.castling_rights &= 0x0C;
 
                     (56, 59)
                 }
@@ -182,6 +187,9 @@ impl super::Board {
 
         let from = self.index_to_notation(from);
         let to = self.index_to_notation(to);
+
+        self.update_state();
+        self.update_enemy_attack_mask(self.player_turn ^ 1);
 
         Response {
             move_type: MoveType::Castling,
