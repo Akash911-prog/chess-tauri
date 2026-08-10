@@ -32,6 +32,7 @@ pub struct Board {
     pub fullmove_clock: u16,
 
     pub enemy_attack_mask: BitBoard,
+    pub pinned_pieces: [Option<BitBoard>; 64],
 
     pub zobrist_hash: u64, // TODO: Add the actualy hash logic and table logic later. Version 2.0
 
@@ -68,6 +69,7 @@ impl Board {
             zobrist_hash: 0,
 
             enemy_attack_mask: BitBoard::EMPTY,
+            pinned_pieces: [None; 64],
 
             move_gen: MoveGen::new(),
             history: HistoryManager::new(),
@@ -141,11 +143,10 @@ impl Board {
     /// - Total board occupancy.
     /// - Enemy attack mask.
     pub fn init(&mut self) {
-        self.color_occupency[0] = self.pieces[0].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
-        self.color_occupency[1] = self.pieces[1].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
-        self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
+        self.update_state();
 
         self.update_enemy_attack_mask(self.player_turn ^ 1);
+        self.pinned_pieces = self.compute_pinned_pieces();
     }
 
     pub fn update_state(&mut self) {
@@ -303,6 +304,42 @@ impl Board {
             .fold(BitBoard::EMPTY, |acc, &x| acc | x);
 
         self.enemy_attack_mask = mask;
+    }
+
+    // board/check.rs, or a new board/pins.rs — your call
+    pub fn compute_pinned_pieces(&self) -> [Option<BitBoard>; 64] {
+        let mut pinned: [Option<BitBoard>; 64] = [None; 64];
+
+        let player = self.player_turn as usize;
+        let enemy = (self.player_turn ^ 1) as usize;
+        let king_board = self.pieces[player][PieceKind::King as usize];
+        let king_idx = king_board.lsb() as usize;
+        let queen_board = self.pieces[enemy][PieceKind::Queen as usize];
+
+        let occ_without_friendly = self.total_occupency & !self.color_occupency[player];
+
+        let rook_pinners = BitBoard(
+            self.move_gen
+                .gen_rook_attacks(king_idx, occ_without_friendly),
+        ) & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board);
+        let bishop_pinners = BitBoard(
+            self.move_gen
+                .gen_bishop_attacks(king_idx, occ_without_friendly),
+        ) & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board);
+
+        for mut pinners in [rook_pinners, bishop_pinners] {
+            while let Some(pinner_sq) = pinners.pop_lsb() {
+                let between = self.move_gen.ray_between(king_idx, pinner_sq as usize);
+                let blockers = between & self.color_occupency[player];
+
+                if blockers.count() == 1 {
+                    let pinned_sq = blockers.lsb() as usize;
+                    pinned[pinned_sq] = Some(between | BitBoard(1u64 << pinner_sq));
+                }
+            }
+        }
+
+        pinned
     }
 
     /// Converts algebraic chess notation into a zero-based bitboard index.

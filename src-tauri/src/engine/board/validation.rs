@@ -1,4 +1,5 @@
 use crate::engine::{
+    bitboard::BitBoard,
     constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
     movegen::MoveFlag,
     types::{CastlingRights, PieceKind},
@@ -21,6 +22,12 @@ impl super::Board {
     /// `true` if the destination is present in the generated move set,
     /// otherwise `false`.
     pub fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
+        if let Some(pin_line) = self.pinned_pieces[from as usize] {
+            if (pin_line & BitBoard(1u64 << to)) == 0 {
+                return false;
+            }
+        }
+
         if (piece_type == PieceKind::Pawn) && (to == self.en_passant_square) {
             return self.validate_ep(from, to);
         }
@@ -149,10 +156,10 @@ impl super::Board {
         let move_mask = (1u64 << from) | (1u64 << to);
 
         let castle = self.identify_castle_type(move_mask)?;
-        println!("castle: {castle:?}");
+        // println!("castle: {castle:?}");
 
         if !self.has_castling_right(castle) {
-            println!("no castling rights");
+            // println!("no castling rights");
             return None;
         }
 
@@ -194,20 +201,20 @@ impl super::Board {
         let rook_board = self.pieces[self.player_turn as usize][PieceKind::Rook as usize];
 
         if rook_board & (1u64 << rook_square) == 0 {
-            println!("rook not found");
+            // println!("rook not found");
             return None;
         }
 
         // All required squares must be empty.
         if !self.total_occupency & empty_mask != empty_mask {
-            println!("squares not empty");
+            // println!("squares not empty");
             return None;
         }
 
         // King cannot currently be in check, cross an attacked square,
         // or land on an attacked square.
         if !self.enemy_attack_mask & safe_mask != safe_mask {
-            println!("king in check");
+            // println!("king in check");
             return None;
         }
 

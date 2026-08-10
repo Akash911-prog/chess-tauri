@@ -75,11 +75,7 @@ impl super::Board {
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        self.update_state();
-        self.update_enemy_attack_mask(self.player_turn ^ 1);
-
-        println!("{}", self.total_occupency);
-        println!("{}", self.enemy_attack_mask);
+        self.init();
 
         Response {
             move_type: MoveType::Normal,
@@ -108,8 +104,7 @@ impl super::Board {
         let from = self.index_to_notation(64);
         let to = self.index_to_notation(capturing_idx);
 
-        self.update_state();
-        self.update_enemy_attack_mask(self.player_turn ^ 1);
+        self.init();
 
         Response {
             move_type: MoveType::EnPassant,
@@ -188,8 +183,7 @@ impl super::Board {
         let from = self.index_to_notation(from);
         let to = self.index_to_notation(to);
 
-        self.update_state();
-        self.update_enemy_attack_mask(self.player_turn ^ 1);
+        self.init();
 
         Response {
             move_type: MoveType::Castling,

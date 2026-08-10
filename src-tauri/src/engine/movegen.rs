@@ -297,6 +297,31 @@ impl MoveGen {
         self.gen_rook_attacks(sq, occupied) | self.gen_bishop_attacks(sq, occupied)
     }
 
+    // board/check.rs, or a new board/pins.rs — your call
+    // in movegen.rs, alongside gen_rook_attacks etc.
+    pub fn ray_between(&self, from: usize, to: usize) -> BitBoard {
+        let (ff, fr) = (from as i8 % 8, from as i8 / 8);
+        let (tf, tr) = (to as i8 % 8, to as i8 / 8);
+        let (df, dr) = (tf - ff, tr - fr);
+
+        let dir = match (df.signum(), dr.signum()) {
+            (0, 0) => return BitBoard(0),
+            (d, 0) if df != 0 => (d, 0),
+            (0, d) if dr != 0 => (0, d),
+            (dx, dy) if df.abs() == dr.abs() => (dx, dy),
+            _ => return BitBoard(0), // not aligned
+        };
+
+        let mut squares = 0u64;
+        let (mut f, mut r) = (ff + dir.0, fr + dir.1);
+        while (f, r) != (tf, tr) {
+            squares |= 1u64 << (r * 8 + f);
+            f += dir.0;
+            r += dir.1;
+        }
+        BitBoard(squares)
+    }
+
     pub fn get_bishop_moves(
         &self,
         idx: usize,
