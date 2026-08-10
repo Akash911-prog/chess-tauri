@@ -365,10 +365,6 @@ impl MoveGen {
         occupied: BitBoard,
         friendly: BitBoard,
     ) -> Option<BitBoard> {
-        println!(
-            "queen attacks: {}",
-            BitBoard(self.gen_queen_attacks(idx, occupied))
-        );
         Some(self.gen_queen_attacks(idx, occupied) & !friendly)
     }
 }
