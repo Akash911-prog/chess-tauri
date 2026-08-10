@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
-use crate::engine::game::Game;
+use crate::engine::{game::Game, types::Color};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +52,17 @@ pub struct Response {
     pub from: String,
     pub to: String,
     pub promotion: Option<PromotionPiece>,
+    pub condition: GameState,
+    pub check: Option<Color>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum GameState {
+    InProgress,
+    Checkmate,
+    Stalemate,
+    Draw,
 }
 
 #[derive(Debug, Serialize)]

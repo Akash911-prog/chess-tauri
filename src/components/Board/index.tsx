@@ -11,6 +11,7 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
         setPiece,
         undoMove,
         updateBoard,
+        finished,
     } = boardData;
 
     const boardRef = useRef<HTMLDivElement>(null);
@@ -23,6 +24,10 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
 
     for (let i = 56; i >= 0; i -= 8) {
         ordered.push(...entries.slice(i, i + 8));
+    }
+
+    if (finished) {
+        return <h1 className="text-6xl">Game Over</h1>;
     }
 
     return (

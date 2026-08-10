@@ -42,7 +42,7 @@ impl super::Board {
         let checkers_by_kind = [
             (
                 self.move_gen
-                    .get_knight_moves(king_idx, friendly_occ)
+                    .get_knight_moves(king_idx, friendly_occ, false)
                     .unwrap_or(BitBoard(0))
                     & self.pieces[enemy][PieceKind::Knight as usize],
                 PieceKind::Knight,

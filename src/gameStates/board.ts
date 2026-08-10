@@ -6,6 +6,7 @@ import { MoveInfo } from "../dto";
 class Board {
     private _board: Record<string, Piece | null>;
     private _prevboardStack: Record<string, Piece | null>[];
+    public finished: boolean = false;
 
     constructor() {
         this._board = { ...INITIAL_BOARD };
@@ -67,6 +68,10 @@ class Board {
             this._board[data.to] = null;
         }
 
+        if (data?.condition != "inprogress") {
+            this.finished = true;
+            return;
+        }
         this._board[to] = this._board[from];
         this._board[from] = null;
     }
@@ -103,6 +108,8 @@ type Response = {
     from: string;
     to: string;
     promotion: string | null;
+    condition: "inprogress" | "Draw" | "checkmate" | "stalemate";
+    check: number | null;
 };
 
 export default Board;

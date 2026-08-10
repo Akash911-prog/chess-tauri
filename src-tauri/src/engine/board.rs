@@ -4,7 +4,7 @@ pub mod moves;
 pub mod validation;
 
 use crate::{
-    dto::{CommandError, Legality, MoveInfo, PromotionPiece, Response},
+    dto::{CommandError, GameState, Legality, MoveInfo, PromotionPiece, Response},
     engine::{
         bitboard::BitBoard,
         constants::INITIAL_BOARD,
@@ -174,7 +174,7 @@ impl Board {
     /// * `Err(CommandError)` - The move could not be processed because of an
     ///   invalid square, empty source square, or game state error.
     pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
-        if self.is_game_over() {
+        if self.get_game_state() != GameState::InProgress {
             return Err(CommandError::GameAlreadyOver);
         }
 
@@ -414,11 +414,57 @@ impl Board {
     ///
     /// This function only checks whether moves exist. It does not distinguish
     /// between checkmate and stalemate.
-    fn is_game_over(&self) -> bool {
-        let legal_moves = self.get_all_legal_moves(self.player_turn, false);
-        let total: u32 = legal_moves.iter().map(|bb| bb.count()).sum();
+    fn get_game_state(&self) -> GameState {
+        let check_info = self.check_for_check();
+        let has_legal_moves = self.any_legal_move_exists();
 
-        total == 0
+        if !has_legal_moves && check_info.is_check {
+            GameState::Checkmate
+        } else if !has_legal_moves {
+            GameState::Stalemate
+        } else {
+            GameState::InProgress
+        }
+    }
+
+    fn any_legal_move_exists(&self) -> bool {
+        let color = self.player_turn;
+        let friendly = self.color_occupency[color as usize];
+        let enemy = self.color_occupency[(color ^ 1) as usize];
+        let occupied = self.total_occupency;
+
+        for piece_idx in 0..6 {
+            let piece_type = PieceKind::from_idx(piece_idx);
+            let mut piece_board = self.pieces[color as usize][piece_idx];
+
+            while let Some(from) = piece_board.pop_lsb() {
+                let pseudo_moves = self.move_gen.get_legal_moves_by_piece(
+                    piece_type,
+                    occupied,
+                    from as usize,
+                    color,
+                    enemy,
+                    friendly,
+                    false,
+                );
+
+                let Some(mut destinations) = pseudo_moves else {
+                    continue;
+                };
+
+                while let Some(to) = destinations.pop_lsb() {
+                    if piece_type == PieceKind::King {
+                        if self.validate_king_move(from, to).is_some() {
+                            return true;
+                        }
+                    } else if self.validate_move(piece_type, from, to) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     /// Generates move bitboards for every piece belonging to a given player.

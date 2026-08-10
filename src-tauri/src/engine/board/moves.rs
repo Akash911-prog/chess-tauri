@@ -1,5 +1,5 @@
 use crate::{
-    dto::{MoveType, Response},
+    dto::{GameState, MoveType, Response},
     engine::{
         history::Undo,
         movegen::{Move, MoveFlag},
@@ -82,6 +82,8 @@ impl super::Board {
             from: self.index_to_notation(move_info.from()),
             to: self.index_to_notation(move_info.to()),
             promotion: None,
+            condition: self.get_game_state(),
+            check: None,
         }
     }
 
@@ -111,6 +113,8 @@ impl super::Board {
             from,
             to,
             promotion: None,
+            condition: self.get_game_state(),
+            check: None,
         }
     }
 
@@ -190,6 +194,8 @@ impl super::Board {
             from,
             to,
             promotion: None,
+            condition: self.get_game_state(),
+            check: None,
         }
     }
 

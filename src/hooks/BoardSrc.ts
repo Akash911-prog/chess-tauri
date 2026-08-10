@@ -7,6 +7,7 @@ export function useBoard() {
     const [board, setBoard] = useState<Record<string, Piece | null>>(
         boardRef.current.board,
     );
+    const finished = boardRef.current.finished;
 
     const sync = useCallback(() => {
         setBoard({ ...boardRef.current.board });
@@ -64,5 +65,6 @@ export function useBoard() {
         updateBoard,
         undoMove,
         reset,
+        finished,
     };
 }
