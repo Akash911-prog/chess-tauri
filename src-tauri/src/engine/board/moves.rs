@@ -39,6 +39,15 @@ impl super::Board {
             return;
         }
 
+        if (move_info.flags() == MoveFlag::PromoRook.bits())
+            || (move_info.flags() == MoveFlag::PromoQueen.bits())
+            || (move_info.flags() == MoveFlag::PromoKnight.bits())
+            || (move_info.flags() == MoveFlag::PromoBishop.bits())
+        {
+            self.do_promotion(move_info);
+            return;
+        }
+
         self.castling_rights &= self.get_castling_rights(move_info);
         if (move_info.piece() == 0) && (move_info.flags() == MoveFlag::DoublePush.bits()) {
             self.en_passant_square = if self.player_turn == 0 {
@@ -241,5 +250,19 @@ impl super::Board {
 
             _ => 0x0F,
         }
+    }
+
+    fn do_promotion(&mut self, mv: Move) {
+        self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^= 1u64 << mv.from();
+
+        let promoted = match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::PromoQueen => PieceKind::Queen,
+            MoveFlag::PromoRook => PieceKind::Rook,
+            MoveFlag::PromoBishop => PieceKind::Rook,
+            MoveFlag::PromoKnight => PieceKind::Knight,
+            _ => PieceKind::Pawn,
+        };
+
+        self.pieces[self.player_turn as usize][promoted as usize] ^= 1u64 << mv.to();
     }
 }

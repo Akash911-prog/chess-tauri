@@ -16,10 +16,10 @@ pub struct MoveInfo {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PromotionPiece {
-    Q,
-    R,
-    B,
-    N,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
 }
 
 #[derive(Debug, Deserialize)]

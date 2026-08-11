@@ -1,8 +1,11 @@
-use crate::engine::{
-    bitboard::BitBoard,
-    constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
-    movegen::MoveFlag,
-    types::{CastlingRights, PieceKind},
+use crate::{
+    dto::MoveInfo,
+    engine::{
+        bitboard::BitBoard,
+        constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
+        movegen::MoveFlag,
+        types::{CastlingRights, PieceKind},
+    },
 };
 
 impl super::Board {
@@ -284,5 +287,21 @@ impl super::Board {
     /// otherwise `false`.
     fn has_castling_right(&self, right: CastlingRights) -> bool {
         self.castling_rights & right.bits() != 0
+    }
+
+    pub fn validate_promotion(&self, to: u8, piece_type: PieceKind) -> bool {
+        if piece_type != PieceKind::Pawn {
+            return false;
+        }
+
+        if (self.player_turn == 0) && to >= 56 {
+            return true;
+        }
+
+        if (self.player_turn == 1) && to <= 7 {
+            return true;
+        }
+
+        false
     }
 }

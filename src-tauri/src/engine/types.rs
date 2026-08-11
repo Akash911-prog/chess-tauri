@@ -73,10 +73,10 @@ impl PieceKind {
 impl From<PromotionPiece> for PieceKind {
     fn from(p: PromotionPiece) -> Self {
         match p {
-            PromotionPiece::Q => PieceKind::Queen,
-            PromotionPiece::R => PieceKind::Rook,
-            PromotionPiece::B => PieceKind::Bishop,
-            PromotionPiece::N => PieceKind::Knight,
+            PromotionPiece::Queen => PieceKind::Queen,
+            PromotionPiece::Rook => PieceKind::Rook,
+            PromotionPiece::Bishop => PieceKind::Bishop,
+            PromotionPiece::Knight => PieceKind::Knight,
         }
     }
 }

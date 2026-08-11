@@ -29,7 +29,7 @@ pub struct Board {
 
     pub player_turn: u8,       // 0 = white, 1 = black
     pub castling_rights: u8,   //KQkq
-    pub promotion: u8,         // 0 = Q, 1 = R, 2 = B, 3 = N
+    pub promotion: u8,         // 4 = Q, 3 = R, 2 = B, 1 = N
     pub en_passant_square: u8, // index of sq
     pub halfmove_clock: u8,    // clock
     pub fullmove_clock: u16,
@@ -203,33 +203,6 @@ impl Board {
         let mut square_changes: Vec<SquareChange> = Vec::new();
         let mut move_type = MoveType::Normal;
 
-        // --- Promotion check & Flag setting ---
-        let (promo_piece, is_promotion) = match move_info.promotion {
-            Some(promo) => (promo, true),
-            None => (PromotionPiece::B, false),
-        };
-
-        if is_promotion {
-            match promo_piece {
-                PromotionPiece::Q => {
-                    self.promotion |= 4;
-                    move_mask |= PromoQueen.bits()
-                }
-                PromotionPiece::R => {
-                    self.promotion |= 3;
-                    move_mask |= PromoRook.bits()
-                }
-                PromotionPiece::B => {
-                    self.promotion |= 2;
-                    move_mask |= PromoBishop.bits()
-                }
-                PromotionPiece::N => {
-                    self.promotion |= 1;
-                    move_mask |= PromoKnight.bits()
-                }
-            }
-        }
-
         // --- Identify the moving piece ---
         // Find the piece index (0 = Pawn, 1 = Knight, etc.) that occupies the 'from' square
         let piece_idx = self.get_piece_index(piece_mask, side);
@@ -249,6 +222,7 @@ impl Board {
                 None => return Ok(Legality::Illegal),
             };
 
+            // Castling. square info
             if (flag == MoveFlag::KingCastle) || (flag == MoveFlag::QueenCastle) {
                 let (rook_from, rook_to) = result.1;
                 let piece_info = PieceInfo::new(
@@ -271,19 +245,55 @@ impl Board {
             }
         }
 
-        // from and to sq changes for normal moves
+        // --- Promotion check & Flag setting ---
+        let (promo_piece, is_promotion) = match move_info.promotion {
+            Some(promo) => (promo, self.validate_promotion(to, piece_type)),
+            None => (PromotionPiece::Bishop, false),
+        };
 
-        let from_notation = self.index_to_notation(from);
-        let to_notation = self.index_to_notation(to);
+        if is_promotion {
+            match promo_piece {
+                PromotionPiece::Queen => {
+                    self.promotion |= 4;
+                    move_mask |= PromoQueen.bits()
+                }
+                PromotionPiece::Rook => {
+                    self.promotion |= 3;
+                    move_mask |= PromoRook.bits()
+                }
+                PromotionPiece::Bishop => {
+                    self.promotion |= 2;
+                    move_mask |= PromoBishop.bits()
+                }
+                PromotionPiece::Knight => {
+                    self.promotion |= 1;
+                    move_mask |= PromoKnight.bits()
+                }
+            }
 
-        square_changes.push(SquareChange::new(from_notation, None));
-        square_changes.push(SquareChange::new(
-            to_notation,
-            Some(PieceInfo::new(
-                piece_type.into(),
-                Color::from(self.player_turn),
-            )),
-        ));
+            move_type = MoveType::Promotion;
+            square_changes.push(SquareChange::new(
+                self.index_to_notation(to),
+                Some(PieceInfo::new(
+                    PieceKind::from_idx(self.promotion as usize).into(),
+                    Color::from(self.player_turn),
+                )),
+            ));
+            square_changes.push(SquareChange::new(self.index_to_notation(from), None));
+        } else {
+            // from and to sq changes for normal moves
+            let from_notation = self.index_to_notation(from);
+            let to_notation = self.index_to_notation(to);
+
+            square_changes.push(SquareChange::new(from_notation, None));
+            square_changes.push(SquareChange::new(
+                to_notation,
+                Some(PieceInfo::new(
+                    piece_type.into(),
+                    Color::from(self.player_turn),
+                )),
+            ));
+        }
 
         // double push check and flag set
         if (piece_type == PieceKind::Pawn) && (from.abs_diff(to) == 16) {

@@ -57,8 +57,12 @@ class Board {
         this._board = {};
     }
 
-    async updateBoard(from: string, to: string): Promise<void> {
-        let legal = await this.checkMove(from, to);
+    async updateBoard(
+        from: string,
+        to: string,
+        promotion: "queen" | "rook" | "bishop" | "knight" | null = null,
+    ): Promise<void> {
+        let legal = await this.checkMove(from, to, promotion);
         console.log(legal); // [true, [true, ["e2", "e4"]]]
         if (!legal[0]) {
             return;
@@ -89,8 +93,9 @@ class Board {
     private async checkMove(
         from: string,
         to: string,
+        promotion: "queen" | "rook" | "bishop" | "knight" | null = null,
     ): Promise<[boolean, Response | null]> {
-        const moveInfo: MoveInfo = { from, to };
+        const moveInfo: MoveInfo = { from, to, promotion: promotion };
 
         try {
             const result = await invoke<
