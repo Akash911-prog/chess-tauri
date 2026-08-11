@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Piece } from "../types";
+import { Piece, Response, toPiece } from "../types";
 import { INITIAL_BOARD } from "./constants";
 import { MoveInfo } from "../dto";
 
@@ -65,25 +65,25 @@ class Board {
         }
         this.prevboardStack.push({ ...this._board });
         let data = legal[1];
-        if (data?.moveType == "castling") {
-            this._board[data.to] = this._board[data.from];
-            this._board[data.from] = null;
-        }
 
-        if (data?.moveType == "enPassant") {
-            this._board[data.to] = null;
-        }
-
-        if (data?.condition != "inprogress") {
-            this.condition = "checkmate";
-            this.winColor = data?.check;
-            this.msg["checkmate"] = `Checkmate! ${this.winColor} wins!`;
-
-            this.finished = true;
+        if (!data) {
             return;
         }
-        this._board[to] = this._board[from];
-        this._board[from] = null;
+
+        data.changes.forEach((change) => {
+            this._board[change.square] = toPiece(change);
+        });
+
+        if (data.condition === "checkmate") {
+            this.finished = true;
+            this.condition = data.condition;
+            this.winColor = data.winner;
+            this.msg[data.condition] = `Checkmate! ${data.winner} wins.`;
+        } else if (data.condition === "stalemate") {
+            this.finished = true;
+            this.condition = data.condition;
+            this.winColor = "";
+        }
     }
 
     private async checkMove(
@@ -100,7 +100,7 @@ class Board {
                 moveInfo,
             });
 
-            return [result.kind === "Legal", result.data ? result.data : null];
+            return [result.kind === "legal", result.data ? result.data : null];
         } catch (error) {
             console.error(error);
             return [false, null];
@@ -112,14 +112,5 @@ class Board {
         invoke("undo_move");
     }
 }
-
-type Response = {
-    moveType: "normal" | "castling" | "promotion" | "enPassant";
-    from: string;
-    to: string;
-    promotion: string | null;
-    condition: "inprogress" | "Draw" | "checkmate" | "stalemate";
-    check: string;
-};
 
 export default Board;

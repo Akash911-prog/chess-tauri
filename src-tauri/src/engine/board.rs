@@ -4,7 +4,10 @@ pub mod moves;
 pub mod validation;
 
 use crate::{
-    dto::{CommandError, GameState, Legality, MoveInfo, PromotionPiece},
+    dto::{
+        CommandError, GameState, Legality, MoveInfo, MoveType, PieceInfo, PromotionPiece, Response,
+        SquareChange,
+    },
     engine::{
         bitboard::BitBoard,
         constants::INITIAL_BOARD,
@@ -14,7 +17,7 @@ use crate::{
             MoveFlag::{self, PromoBishop, PromoKnight, PromoQueen, PromoRook},
             MoveGen,
         },
-        types::PieceKind,
+        types::{Color, PieceKind},
     },
 };
 
@@ -197,6 +200,9 @@ impl Board {
         let captured_piece_mask = 1u64 << to;
         let side = self.player_turn;
 
+        let mut square_changes: Vec<SquareChange> = Vec::new();
+        let mut move_type = MoveType::Normal;
+
         // --- Promotion check & Flag setting ---
         let (promo_piece, is_promotion) = match move_info.promotion {
             Some(promo) => (promo, true),
@@ -237,10 +243,25 @@ impl Board {
 
         // --- Legality check ---
         if piece_type == PieceKind::King {
-            let flag = match self.validate_king_move(from, to) {
+            let result = self.validate_king_move(from, to);
+            let flag = match result.0 {
                 Some(flag) => flag,
                 None => return Ok(Legality::Illegal),
             };
+
+            if (flag == MoveFlag::KingCastle) || (flag == MoveFlag::QueenCastle) {
+                let (rook_from, rook_to) = result.1;
+                let piece_info = PieceInfo::new(
+                    crate::dto::PieceKindDto::Rook,
+                    Color::from(self.player_turn),
+                );
+                square_changes.push(SquareChange::new(
+                    self.index_to_notation(rook_to),
+                    Some(piece_info),
+                ));
+                square_changes.push(SquareChange::new(self.index_to_notation(rook_from), None));
+                move_type = MoveType::Castling;
+            }
 
             move_mask |= flag.bits();
         } else {
@@ -250,6 +271,20 @@ impl Board {
             }
         }
 
+        // from and to sq changes for normal moves
+
+        let from_notation = self.index_to_notation(from);
+        let to_notation = self.index_to_notation(to);
+
+        square_changes.push(SquareChange::new(from_notation, None));
+        square_changes.push(SquareChange::new(
+            to_notation,
+            Some(PieceInfo::new(
+                piece_type.into(),
+                Color::from(self.player_turn),
+            )),
+        ));
+
         // double push check and flag set
         if (piece_type == PieceKind::Pawn) && (from.abs_diff(to) == 16) {
             move_mask |= MoveFlag::DoublePush.bits();
@@ -257,6 +292,10 @@ impl Board {
 
         // En passant check and flag set
         if (piece_type == PieceKind::Pawn) && (self.en_passant_square == to) {
+            let captured_idx = if to > from { to - 8 } else { to + 8 };
+            let captured_piece_notation = self.index_to_notation(captured_idx);
+            square_changes.push(SquareChange::new(captured_piece_notation, None));
+            move_type = MoveType::EnPassant;
             move_mask |= MoveFlag::EpCapture.bits();
         }
 
@@ -276,8 +315,29 @@ impl Board {
             move_mask |= MoveFlag::Capture.bits();
             Move::new(move_mask, captured_piece)
         };
-        let info = self.make_move(new_move);
-        Ok(Legality::Legal(info))
+        self.make_move(new_move);
+
+        Ok(Legality::Legal(
+            self.build_response(square_changes, move_type),
+        ))
+    }
+
+    fn build_response(&self, square_changes: Vec<SquareChange>, move_type: MoveType) -> Response {
+        let game_state = self.get_game_state();
+        let mut winner = None;
+
+        if game_state == GameState::Checkmate {
+            winner = Some(Color::from(self.player_turn ^ 1));
+        }
+
+        let response = Response {
+            changes: square_changes,
+            condition: game_state,
+            winner: winner,
+            move_type,
+        };
+
+        response
     }
 
     fn index_to_notation(&self, index: u8) -> String {
@@ -454,7 +514,7 @@ impl Board {
 
                 while let Some(to) = destinations.pop_lsb() {
                     if piece_type == PieceKind::King {
-                        if self.validate_king_move(from, to).is_some() {
+                        if self.validate_king_move(from, to).0.is_some() {
                             return true;
                         }
                     } else if self.validate_move(piece_type, from, to) {

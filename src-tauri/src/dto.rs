@@ -30,14 +30,14 @@ pub struct GetLegalMovesParams {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "kind", content = "data")]
+#[serde(tag = "kind", content = "data", rename_all = "lowercase")]
 pub enum Legality {
     Legal(Response),
     Illegal,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum MoveType {
     Normal,
     Castling,
@@ -46,14 +46,75 @@ pub enum MoveType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PieceKindDto {
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+}
+
+impl From<PieceKindDto> for crate::engine::types::PieceKind {
+    fn from(value: PieceKindDto) -> Self {
+        match value {
+            PieceKindDto::Pawn => crate::engine::types::PieceKind::Pawn,
+            PieceKindDto::Knight => crate::engine::types::PieceKind::Knight,
+            PieceKindDto::Bishop => crate::engine::types::PieceKind::Bishop,
+            PieceKindDto::Rook => crate::engine::types::PieceKind::Rook,
+            PieceKindDto::Queen => crate::engine::types::PieceKind::Queen,
+            PieceKindDto::King => crate::engine::types::PieceKind::King,
+        }
+    }
+}
+
+impl From<crate::engine::types::PieceKind> for PieceKindDto {
+    fn from(value: crate::engine::types::PieceKind) -> Self {
+        match value {
+            crate::engine::types::PieceKind::Pawn => PieceKindDto::Pawn,
+            crate::engine::types::PieceKind::Knight => PieceKindDto::Knight,
+            crate::engine::types::PieceKind::Bishop => PieceKindDto::Bishop,
+            crate::engine::types::PieceKind::Rook => PieceKindDto::Rook,
+            crate::engine::types::PieceKind::Queen => PieceKindDto::Queen,
+            crate::engine::types::PieceKind::King => PieceKindDto::King,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PieceInfo {
+    pub kind: PieceKindDto,
+    pub color: Color,
+}
+
+impl PieceInfo {
+    pub fn new(kind: PieceKindDto, color: Color) -> Self {
+        PieceInfo { kind, color }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SquareChange {
+    pub square: String,
+    pub piece: Option<PieceInfo>, // None = now empty
+}
+
+impl SquareChange {
+    pub fn new(square: String, piece: Option<PieceInfo>) -> Self {
+        SquareChange { square, piece }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub move_type: MoveType,
-    pub from: String,
-    pub to: String,
-    pub promotion: Option<PromotionPiece>,
+    pub changes: Vec<SquareChange>,
     pub condition: GameState,
-    pub check: Option<Color>,
+    pub winner: Option<Color>,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]

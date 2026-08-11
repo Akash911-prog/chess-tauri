@@ -123,16 +123,17 @@ impl super::Board {
     /// * `Some(MoveFlag::KingCastle)` for legal kingside castling.
     /// * `Some(MoveFlag::QueenCastle)` for legal queenside castling.
     /// * `None` if the move is illegal.
-    pub fn validate_king_move(&self, from: u8, to: u8) -> Option<MoveFlag> {
+    pub fn validate_king_move(&self, from: u8, to: u8) -> (Option<MoveFlag>, (u8, u8)) {
         if self.quiet_king_push(from, to) {
-            return Some(MoveFlag::Quiet);
+            return (Some(MoveFlag::Quiet), (from, to));
         };
 
-        if let Some(flag) = self.validate_castle(from, to) {
-            return Some(flag);
-        };
+        let castle_result = self.validate_castle(from, to);
+        if let Some(castle) = castle_result.0 {
+            return (Some(castle), castle_result.1);
+        }
 
-        None
+        (None, (65, 65))
     }
 
     /// Validates whether the king can perform a castling move.
@@ -151,24 +152,33 @@ impl super::Board {
     /// * `Some(MoveFlag::KingCastle)` for legal kingside castling.
     /// * `Some(MoveFlag::QueenCastle)` for legal queenside castling.
     /// * `None` if the move is not a valid castle.
-    fn validate_castle(&self, from: u8, to: u8) -> Option<MoveFlag> {
+    fn validate_castle(&self, from: u8, to: u8) -> (Option<MoveFlag>, (u8, u8)) {
         let move_mask = (1u64 << from) | (1u64 << to);
 
-        let castle = self.identify_castle_type(move_mask)?;
+        let castle = match self.identify_castle_type(move_mask) {
+            Some(castle) => castle,
+            None => return (None, (65, 65)),
+        };
         // println!("castle: {castle:?}");
 
         if !self.has_castling_right(castle) {
             // println!("no castling rights");
-            return None;
+            return (None, (65, 65));
         }
 
-        let (rook_square, empty_mask, safe_mask, flag) = match castle {
+        let (rook_square, empty_mask, safe_mask, flag, rook_moves) = match castle {
             CastlingRights::WhiteKingside => {
                 let rook_square = 7;
                 let empty_mask = (1u64 << 5) | (1u64 << 6);
                 let safe_mask = (1u64 << 4) | (1u64 << 5) | (1u64 << 6);
 
-                (rook_square, empty_mask, safe_mask, MoveFlag::KingCastle)
+                (
+                    rook_square,
+                    empty_mask,
+                    safe_mask,
+                    MoveFlag::KingCastle,
+                    (7u8, 5u8),
+                )
             }
 
             CastlingRights::WhiteQueenside => {
@@ -176,7 +186,13 @@ impl super::Board {
                 let empty_mask = (1u64 << 1) | (1u64 << 2) | (1u64 << 3);
                 let safe_mask = (1u64 << 2) | (1u64 << 3) | (1u64 << 4);
 
-                (rook_square, empty_mask, safe_mask, MoveFlag::QueenCastle)
+                (
+                    rook_square,
+                    empty_mask,
+                    safe_mask,
+                    MoveFlag::QueenCastle,
+                    (63u8, 61u8),
+                )
             }
 
             CastlingRights::BlackKingside => {
@@ -184,7 +200,13 @@ impl super::Board {
                 let empty_mask = (1u64 << 61) | (1u64 << 62);
                 let safe_mask = (1u64 << 60) | (1u64 << 61) | (1u64 << 62);
 
-                (rook_square, empty_mask, safe_mask, MoveFlag::KingCastle)
+                (
+                    rook_square,
+                    empty_mask,
+                    safe_mask,
+                    MoveFlag::KingCastle,
+                    (0u8, 3u8),
+                )
             }
 
             CastlingRights::BlackQueenside => {
@@ -192,7 +214,13 @@ impl super::Board {
                 let empty_mask = (1u64 << 57) | (1u64 << 58) | (1u64 << 59);
                 let safe_mask = (1u64 << 58) | (1u64 << 59) | (1u64 << 60);
 
-                (rook_square, empty_mask, safe_mask, MoveFlag::QueenCastle)
+                (
+                    rook_square,
+                    empty_mask,
+                    safe_mask,
+                    MoveFlag::QueenCastle,
+                    (56u8, 59u8),
+                )
             }
         };
 
@@ -201,23 +229,23 @@ impl super::Board {
 
         if rook_board & (1u64 << rook_square) == 0 {
             // println!("rook not found");
-            return None;
+            return (None, (65, 65));
         }
 
         // All required squares must be empty.
         if !self.total_occupency & empty_mask != empty_mask {
             // println!("squares not empty");
-            return None;
+            return (None, (65, 65));
         }
 
         // King cannot currently be in check, cross an attacked square,
         // or land on an attacked square.
         if !self.enemy_attack_mask & safe_mask != safe_mask {
             // println!("king in check");
-            return None;
+            return (None, (65, 65));
         }
 
-        Some(flag)
+        (Some(flag), rook_moves)
     }
 
     /// Identifies the type of castling represented by a king move.

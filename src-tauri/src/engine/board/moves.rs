@@ -1,10 +1,7 @@
-use crate::{
-    dto::{GameState, MoveType, Response},
-    engine::{
-        history::Undo,
-        movegen::{Move, MoveFlag},
-        types::{Color, PieceKind},
-    },
+use crate::engine::{
+    history::Undo,
+    movegen::{Move, MoveFlag},
+    types::PieceKind,
 };
 
 impl super::Board {
@@ -20,7 +17,7 @@ impl super::Board {
     /// # Arguments
     ///
     /// * `move_info` - The packed [`Move`] describing the move to perform.
-    pub fn make_move(&mut self, move_info: Move) -> Response {
+    pub fn make_move(&mut self, move_info: Move) {
         let undo = Undo::new(
             move_info,
             self.castling_rights,
@@ -31,15 +28,15 @@ impl super::Board {
         self.history.push(undo);
 
         if move_info.flags() == MoveFlag::EpCapture.bits() {
-            let response = self.do_ep_capture(move_info);
-            return response;
+            self.do_ep_capture(move_info);
+            return;
         }
 
         if (move_info.flags() == MoveFlag::KingCastle.bits())
             || (move_info.flags() == MoveFlag::QueenCastle.bits())
         {
-            let response = self.do_castle(move_info);
-            return response;
+            self.do_castle(move_info);
+            return;
         }
 
         self.castling_rights &= self.get_castling_rights(move_info);
@@ -76,18 +73,9 @@ impl super::Board {
         self.fullmove_clock += 1;
 
         self.init();
-
-        Response {
-            move_type: MoveType::Normal,
-            from: self.index_to_notation(move_info.from()),
-            to: self.index_to_notation(move_info.to()),
-            promotion: None,
-            condition: self.get_game_state(),
-            check: Some(Color::from(self.player_turn ^ 1)),
-        }
     }
 
-    fn do_ep_capture(&mut self, mv: Move) -> Response {
+    fn do_ep_capture(&mut self, mv: Move) {
         let capturing_idx = if (self.player_turn ^ 1) == 0 {
             mv.to() + 8
         } else {
@@ -103,19 +91,7 @@ impl super::Board {
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        let from = self.index_to_notation(64);
-        let to = self.index_to_notation(capturing_idx);
-
         self.init();
-
-        Response {
-            move_type: MoveType::EnPassant,
-            from,
-            to,
-            promotion: None,
-            condition: self.get_game_state(),
-            check: Some(Color::from(self.player_turn ^ 1)),
-        }
     }
 
     /// Executes the board changes required for a castling move.
@@ -126,14 +102,14 @@ impl super::Board {
     /// # Arguments
     ///
     /// * `mv` - The [`Move`] containing the castling move information.
-    fn do_castle(&mut self, mv: Move) -> Response {
+    fn do_castle(&mut self, mv: Move) {
         let color = self.player_turn as usize;
         let rook_board = self.pieces[color][PieceKind::Rook as usize];
 
         // Move the king from its original square to its castling square.
         self.pieces[color][PieceKind::King as usize] ^= (1u64 << mv.from()) | (1u64 << mv.to());
 
-        let (from, to) = match MoveFlag::from_bits(mv.flags()) {
+        match MoveFlag::from_bits(mv.flags()) {
             MoveFlag::KingCastle => {
                 if color == 0 {
                     // White: h1 -> f1
@@ -142,8 +118,6 @@ impl super::Board {
 
                     // Remove White kingside castling right (K = 0x08).
                     self.castling_rights &= 0x03;
-
-                    (7, 5)
                 } else {
                     // Black: h8 -> f8
                     self.pieces[color][PieceKind::Rook as usize] =
@@ -151,8 +125,6 @@ impl super::Board {
 
                     // Remove Black kingside castling right (k = 0x02).
                     self.castling_rights &= 0x0C;
-
-                    (63u8, 61u8)
                 }
             }
 
@@ -164,8 +136,6 @@ impl super::Board {
 
                     // Remove White queenside castling right (Q = 0x04).
                     self.castling_rights &= 0x03;
-
-                    (0, 3)
                 } else {
                     // Black: a8 -> d8
                     self.pieces[color][PieceKind::Rook as usize] =
@@ -173,30 +143,16 @@ impl super::Board {
 
                     // Remove Black queenside castling right (q = 0x01).
                     self.castling_rights &= 0x0C;
-
-                    (56, 59)
                 }
             }
 
-            _ => (65, 65),
+            _ => {}
         };
 
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        let from = self.index_to_notation(from);
-        let to = self.index_to_notation(to);
-
         self.init();
-
-        Response {
-            move_type: MoveType::Castling,
-            from,
-            to,
-            promotion: None,
-            condition: self.get_game_state(),
-            check: Some(Color::from(self.player_turn ^ 1)),
-        }
     }
 
     /// Reverts the most recently recorded move.
