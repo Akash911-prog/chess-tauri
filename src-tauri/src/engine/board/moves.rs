@@ -245,10 +245,10 @@ impl super::Board {
             PieceKind::King => {
                 if self.player_turn == 0 {
                     // White king moved: remove K and Q.
-                    0x0C
+                    0x03
                 } else {
                     // Black king moved: remove k and q.
-                    0x03
+                    0x0C
                 }
             }
 
