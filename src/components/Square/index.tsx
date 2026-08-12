@@ -1,5 +1,10 @@
 import { motion } from "motion/react";
-import { Color, PieceKind, Piece as PieceType } from "../../types";
+import {
+    Color,
+    PendingPromotion,
+    PieceKind,
+    Piece as PieceType,
+} from "../../types";
 import Piece from "../Piece/index";
 
 type Props = {
@@ -15,7 +20,9 @@ type Props = {
     boardVersion: number;
     setBoardVersion: React.Dispatch<React.SetStateAction<number>>;
     needsPromotion: (from: string, to: string) => [boolean, Color];
-    setNeedPromotion: React.Dispatch<React.SetStateAction<[boolean, Color]>>;
+    setPendingPromotion: React.Dispatch<
+        React.SetStateAction<PendingPromotion | null>
+    >;
 };
 
 const SNAPPY_TRANSITION = {
@@ -35,7 +42,7 @@ const Square = ({
     boardVersion,
     setBoardVersion,
     needsPromotion,
-    setNeedPromotion,
+    setPendingPromotion,
 }: Props) => {
     const file = idx % 8;
     const rank = Math.floor(idx / 8);
@@ -69,14 +76,15 @@ const Square = ({
             setBoardVersion((prev) => prev + 1);
             return;
         }
-        let promotion = needsPromotion(square, targetSquare);
-        setNeedPromotion(promotion);
+        const [needsPromo, color] = needsPromotion(square, targetSquare);
+        // console.log(needsPromo, color);
+        if (needsPromo) {
+            setPendingPromotion({ from: square, to: targetSquare, color });
+            setBoardVersion((prev) => prev + 1);
+            return; // wait for the menu — do NOT call updateBoard yet
+        }
         // call your move logic here, e.g. updateBoard(currentSquare, targetSquare)
-        await updateBoard(
-            square,
-            targetSquare,
-            promotion[0] ? promotion[1] : null,
-        );
+        await updateBoard(square, targetSquare, null);
         setBoardVersion((prev) => prev + 1);
         return;
     };

@@ -264,5 +264,10 @@ impl super::Board {
         };
 
         self.pieces[self.player_turn as usize][promoted as usize] ^= 1u64 << mv.to();
+
+        self.player_turn ^= 1;
+        self.fullmove_clock += 1;
+
+        self.init();
     }
 }

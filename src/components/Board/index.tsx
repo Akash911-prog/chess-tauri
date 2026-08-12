@@ -3,14 +3,16 @@ import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
 import GameOverModal from "../GameOverScreen";
 import { useNavigate } from "react-router";
-import { Color } from "../../types";
+import { PendingPromotion } from "../../types";
 
 const Board = ({
     boardData,
-    setNeedPromotion,
+    setPendingPromotion,
 }: {
     boardData: ReturnType<typeof useBoard>;
-    setNeedPromotion: React.Dispatch<React.SetStateAction<[boolean, Color]>>;
+    setPendingPromotion: React.Dispatch<
+        React.SetStateAction<PendingPromotion | null>
+    >;
 }) => {
     let {
         board,
@@ -60,7 +62,7 @@ const Board = ({
                         boardVersion={boardVersion}
                         setBoardVersion={setBoardVersion}
                         needsPromotion={needsPromotion}
-                        setNeedPromotion={setNeedPromotion}
+                        setPendingPromotion={setPendingPromotion}
                     />
                 ))}
 

@@ -48,3 +48,9 @@ export function toPiece(info: SquareChange): Piece | null {
         square: info.square,
     };
 }
+
+export interface PendingPromotion {
+    from: string;
+    to: string;
+    color: Color;
+}
