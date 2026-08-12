@@ -39,8 +39,12 @@ export function useBoard() {
     }, [sync]);
 
     const updateBoard = useCallback(
-        async (from: string, to: string) => {
-            await boardRef.current.updateBoard(from, to);
+        async (
+            from: string,
+            to: string,
+            promotion: "queen" | "rook" | "bishop" | "knight" | null = null,
+        ) => {
+            await boardRef.current.updateBoard(from, to, promotion);
             sync();
         },
         [sync],
@@ -72,6 +76,13 @@ export function useBoard() {
         };
     }, []);
 
+    const needsPromotion = useCallback(
+        (from: string, to: string) => {
+            return boardRef.current.needsPromotion(from, to);
+        },
+        [sync],
+    );
+
     return {
         board,
         getPiece,
@@ -84,5 +95,6 @@ export function useBoard() {
         finished,
         setFinished,
         getFinishedState,
+        needsPromotion,
     };
 }

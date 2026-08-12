@@ -5,8 +5,8 @@ pub mod validation;
 
 use crate::{
     dto::{
-        CommandError, GameState, Legality, MoveInfo, MoveType, PieceInfo, PromotionPiece, Response,
-        SquareChange,
+        CommandError, GameState, Legality, MoveInfo, MoveType, PieceInfo, PieceKindDto,
+        PromotionPiece, Response, SquareChange,
     },
     engine::{
         bitboard::BitBoard,
@@ -158,30 +158,8 @@ impl Board {
         self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
     }
 
-    /// Parses and validates a move received from the React frontend.
-    ///
-    /// Converts algebraic square notation such as `"e2"` and `"e4"` into
-    /// bitboard square indices, identifies the moving piece, determines
-    /// promotion information, validates the move, constructs the packed
-    /// [`Move`], and finally applies it to the board.
-    ///
-    /// # Arguments
-    ///
-    /// * `move_info` - The frontend [`MoveInfo`] containing source, destination,
-    ///   and optional promotion information.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Legality::Legal)` - The move was valid and was applied.
-    /// * `Ok(Legality::Illegal)` - The move was syntactically valid but illegal.
-    /// * `Err(CommandError)` - The move could not be processed because of an
-    ///   invalid square, empty source square, or game state error.
-    pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
-        if self.get_game_state() != GameState::InProgress {
-            return Err(CommandError::GameAlreadyOver);
-        }
-
-        // --- Parse & validate square notation ---
+    /// Parses and range-checks both squares from the frontend's algebraic notation.
+    fn parse_move_squares(&self, move_info: &MoveInfo) -> Result<(u8, u8), CommandError> {
         let from = self.notation_to_index(&move_info.from);
         let to = self.notation_to_index(&move_info.to);
 
@@ -193,140 +171,151 @@ impl Board {
         if to > 63 {
             return Err(CommandError::InvalidSquareIndex { square: to as u16 });
         }
+        Ok((from, to))
+    }
 
-        // 16-bit move encoding: [6-bit from][6-bit to]
+    /// Sets promotion state/flags if requested, and returns the promoted piece's
+    /// DTO kind (for rendering) alongside the flag bits to OR into the move mask.
+    fn apply_promotion_flags(
+        &mut self,
+        from: u8,
+        to: u8,
+        promotion: Option<PromotionPiece>,
+    ) -> (u16, Option<PieceKindDto>) {
         let mut move_mask = ((to as u16) << 6) | (from as u16);
-        let piece_mask = 1u64 << from;
-        let captured_piece_mask = 1u64 << to;
+
+        let Some(promo) = promotion else {
+            return (move_mask, None);
+        };
+
+        let (bits, promotion_value, kind) = match promo {
+            PromotionPiece::Queen => (PromoQueen.bits(), 4, PieceKindDto::Queen),
+            PromotionPiece::Rook => (PromoRook.bits(), 3, PieceKindDto::Rook),
+            PromotionPiece::Bishop => (PromoBishop.bits(), 2, PieceKindDto::Bishop),
+            PromotionPiece::Knight => (PromoKnight.bits(), 1, PieceKindDto::Knight),
+        };
+
+        self.promotion = promotion_value; // NOTE: still `=` here, not `|=` — see callout below
+        move_mask |= bits;
+        (move_mask, Some(kind))
+    }
+
+    /// Validates a king move and, if it's a castle, builds the rook's square changes.
+    /// Returns `None` if the move is illegal.
+    fn resolve_king_move(&self, from: u8, to: u8) -> Option<(MoveFlag, Option<Vec<SquareChange>>)> {
+        let (flag, (rook_from, rook_to)) = self.validate_king_move(from, to);
+        let flag = flag?;
+
+        if flag == MoveFlag::KingCastle || flag == MoveFlag::QueenCastle {
+            let piece_info = PieceInfo::new(PieceKindDto::Rook, Color::from(self.player_turn));
+            let changes = vec![
+                SquareChange::new(self.index_to_notation(rook_to), Some(piece_info)),
+                SquareChange::new(self.index_to_notation(rook_from), None),
+            ];
+            return Some((flag, Some(changes)));
+        }
+
+        Some((flag, None))
+    }
+
+    /// Builds the {from: empty, to: piece} change pair for a normal/promoting move.
+    /// Uses `promoted_kind` in place of the original piece type when present —
+    /// this is what makes promotions actually render correctly.
+    fn build_move_changes(
+        &self,
+        from: u8,
+        to: u8,
+        piece_type: PieceKind,
+        promoted_kind: Option<PieceKindDto>,
+    ) -> Vec<SquareChange> {
+        let kind = promoted_kind.unwrap_or_else(|| piece_type.into());
+        vec![
+            SquareChange::new(self.index_to_notation(from), None),
+            SquareChange::new(
+                self.index_to_notation(to),
+                Some(PieceInfo::new(kind, Color::from(self.player_turn))),
+            ),
+        ]
+    }
+
+    /// Builds the extra "captured pawn's square goes empty" change for en passant.
+    fn build_ep_capture_change(&self, from: u8, to: u8) -> SquareChange {
+        let captured_idx = if to > from { to - 8 } else { to + 8 };
+        SquareChange::new(self.index_to_notation(captured_idx), None)
+    }
+
+    /// Determines capture status against `to` and packs the final `Move`.
+    /// Returns `None` if the destination is occupied but the piece there
+    /// can't be identified (shouldn't happen on a consistent board — treat as illegal).
+    fn build_packed_move(&self, move_mask: u16, to: u8, piece_idx: usize) -> Option<Move> {
+        let mut move_mask = move_mask;
         let side = self.player_turn;
+        let captured_piece_mask = 1u64 << to;
 
-        let mut square_changes: Vec<SquareChange> = Vec::new();
-        let mut move_type = MoveType::Normal;
+        if (self.color_occupency[(side ^ 1) as usize] & captured_piece_mask) == 0 {
+            let piece = (6u8 << 4) | (piece_idx as u8);
+            return Some(Move::new(move_mask, piece));
+        }
 
-        // --- Identify the moving piece ---
-        // Find the piece index (0 = Pawn, 1 = Knight, etc.) that occupies the 'from' square
-        let piece_idx = self.get_piece_index(piece_mask, side);
+        let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
+        if captured_piece_idx > 5 {
+            return None;
+        }
+        let captured_piece = ((captured_piece_idx as u8) << 4) | (piece_idx as u8);
+        move_mask |= MoveFlag::Capture.bits();
+        Some(Move::new(move_mask, captured_piece))
+    }
+
+    pub fn parse_react_move(&mut self, move_info: MoveInfo) -> Result<Legality, CommandError> {
+        if self.get_game_state() != GameState::InProgress {
+            return Err(CommandError::GameAlreadyOver);
+        }
+
+        let (from, to) = self.parse_move_squares(&move_info)?;
+
+        let piece_idx = self.get_piece_index(1u64 << from, self.player_turn);
         if piece_idx > 5 {
             return Err(CommandError::EmptySquare { square: from });
         }
-        println!("piece_idx: {}", piece_idx);
         let piece_type = PieceKind::from_idx(piece_idx);
 
-        println!("from: {}, to: {}, piece_type: {:?}", from, to, piece_type);
+        let (mut move_mask, promoted_kind) =
+            self.apply_promotion_flags(from, to, move_info.promotion);
 
-        // --- Legality check ---
+        let mut square_changes = Vec::new();
+        let mut move_type = MoveType::Normal;
+
         if piece_type == PieceKind::King {
-            let result = self.validate_king_move(from, to);
-            let flag = match result.0 {
-                Some(flag) => flag,
-                None => return Ok(Legality::Illegal),
+            let Some((flag, castle_changes)) = self.resolve_king_move(from, to) else {
+                return Ok(Legality::Illegal);
             };
-
-            // Castling. square info
-            if (flag == MoveFlag::KingCastle) || (flag == MoveFlag::QueenCastle) {
-                let (rook_from, rook_to) = result.1;
-                let piece_info = PieceInfo::new(
-                    crate::dto::PieceKindDto::Rook,
-                    Color::from(self.player_turn),
-                );
-                square_changes.push(SquareChange::new(
-                    self.index_to_notation(rook_to),
-                    Some(piece_info),
-                ));
-                square_changes.push(SquareChange::new(self.index_to_notation(rook_from), None));
+            move_mask |= flag.bits();
+            if let Some(changes) = castle_changes {
+                square_changes.extend(changes);
                 move_type = MoveType::Castling;
             }
+        } else if !self.validate_move(piece_type, from, to) {
+            return Ok(Legality::Illegal);
+        }
 
-            move_mask |= flag.bits();
-        } else {
-            if !self.validate_move(piece_type, from, to) {
-                println!("Invalid move");
-                return Ok(Legality::Illegal);
+        square_changes.extend(self.build_move_changes(from, to, piece_type, promoted_kind));
+
+        if piece_type == PieceKind::Pawn {
+            if from.abs_diff(to) == 16 {
+                move_mask |= MoveFlag::DoublePush.bits();
+            }
+            if self.en_passant_square == to {
+                square_changes.push(self.build_ep_capture_change(from, to));
+                move_type = MoveType::EnPassant;
+                move_mask |= MoveFlag::EpCapture.bits();
             }
         }
 
-        // --- Promotion check & Flag setting ---
-        let (promo_piece, is_promotion) = match move_info.promotion {
-            Some(promo) => (promo, self.validate_promotion(to, piece_type)),
-            None => (PromotionPiece::Bishop, false),
+        let Some(new_move) = self.build_packed_move(move_mask, to, piece_idx) else {
+            return Ok(Legality::Illegal);
         };
 
-        if is_promotion {
-            match promo_piece {
-                PromotionPiece::Queen => {
-                    self.promotion |= 4;
-                    move_mask |= PromoQueen.bits()
-                }
-                PromotionPiece::Rook => {
-                    self.promotion |= 3;
-                    move_mask |= PromoRook.bits()
-                }
-                PromotionPiece::Bishop => {
-                    self.promotion |= 2;
-                    move_mask |= PromoBishop.bits()
-                }
-                PromotionPiece::Knight => {
-                    self.promotion |= 1;
-                    move_mask |= PromoKnight.bits()
-                }
-            }
-
-            move_type = MoveType::Promotion;
-            square_changes.push(SquareChange::new(
-                self.index_to_notation(to),
-                Some(PieceInfo::new(
-                    PieceKind::from_idx(self.promotion as usize).into(),
-                    Color::from(self.player_turn),
-                )),
-            ));
-            square_changes.push(SquareChange::new(self.index_to_notation(from), None));
-        } else {
-            // from and to sq changes for normal moves
-            let from_notation = self.index_to_notation(from);
-            let to_notation = self.index_to_notation(to);
-
-            square_changes.push(SquareChange::new(from_notation, None));
-            square_changes.push(SquareChange::new(
-                to_notation,
-                Some(PieceInfo::new(
-                    piece_type.into(),
-                    Color::from(self.player_turn),
-                )),
-            ));
-        }
-
-        // double push check and flag set
-        if (piece_type == PieceKind::Pawn) && (from.abs_diff(to) == 16) {
-            move_mask |= MoveFlag::DoublePush.bits();
-        }
-
-        // En passant check and flag set
-        if (piece_type == PieceKind::Pawn) && (self.en_passant_square == to) {
-            let captured_idx = if to > from { to - 8 } else { to + 8 };
-            let captured_piece_notation = self.index_to_notation(captured_idx);
-            square_changes.push(SquareChange::new(captured_piece_notation, None));
-            move_type = MoveType::EnPassant;
-            move_mask |= MoveFlag::EpCapture.bits();
-        }
-
-        // --- Determine capture status & build the packed Move ---
-        let new_move = if (self.color_occupency[(side ^ 1) as usize] & captured_piece_mask) == 0 {
-            // Target square is empty - quiet move, no capture
-            let piece = (6u8 << 4) | (piece_idx as u8);
-            Move::new(move_mask, piece)
-        } else {
-            // Target square is occupied by an enemy piece - capture move
-            let captured_piece_idx = self.get_piece_index(captured_piece_mask, side ^ 1);
-            if captured_piece_idx > 5 {
-                println!("captured_piece_idx: {}", captured_piece_idx);
-                return Ok(Legality::Illegal);
-            }
-            let captured_piece = ((captured_piece_idx as u8) << 4) | (piece_idx as u8);
-            move_mask |= MoveFlag::Capture.bits();
-            Move::new(move_mask, captured_piece)
-        };
         self.make_move(new_move);
-
         Ok(Legality::Legal(
             self.build_response(square_changes, move_type),
         ))

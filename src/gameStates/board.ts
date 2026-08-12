@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Piece, Response, toPiece } from "../types";
+import { Color, Piece, PieceKind, Response, toPiece } from "../types";
 import { INITIAL_BOARD } from "./constants";
 import { MoveInfo } from "../dto";
 
@@ -55,6 +55,17 @@ class Board {
 
     clear(): void {
         this._board = {};
+    }
+
+    needsPromotion(from: string, to: string): [boolean, Color] {
+        const piece = this.getPiece(from);
+        if (!piece || piece.kind !== PieceKind.Pawn)
+            return [false, Color.White];
+
+        const destinationRank = to[1]; // "1".."8"
+        const promotionRank = piece.color === Color.White ? "8" : "1";
+
+        return [destinationRank === promotionRank, piece.color];
     }
 
     async updateBoard(

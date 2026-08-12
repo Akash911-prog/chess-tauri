@@ -3,8 +3,15 @@ import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
 import GameOverModal from "../GameOverScreen";
 import { useNavigate } from "react-router";
+import { Color } from "../../types";
 
-const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
+const Board = ({
+    boardData,
+    setNeedPromotion,
+}: {
+    boardData: ReturnType<typeof useBoard>;
+    setNeedPromotion: React.Dispatch<React.SetStateAction<[boolean, Color]>>;
+}) => {
     let {
         board,
         clear,
@@ -17,6 +24,7 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
         finished,
         setFinished,
         getFinishedState,
+        needsPromotion,
     } = boardData;
 
     let navigate = useNavigate();
@@ -51,6 +59,8 @@ const Board = ({ boardData }: { boardData: ReturnType<typeof useBoard> }) => {
                         updateBoard={updateBoard}
                         boardVersion={boardVersion}
                         setBoardVersion={setBoardVersion}
+                        needsPromotion={needsPromotion}
+                        setNeedPromotion={setNeedPromotion}
                     />
                 ))}
 

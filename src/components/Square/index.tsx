@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { PieceKind, Piece as PieceType } from "../../types";
+import { Color, PieceKind, Piece as PieceType } from "../../types";
 import Piece from "../Piece/index";
 
 type Props = {
@@ -7,9 +7,15 @@ type Props = {
     piece: PieceType | null;
     idx: number;
     boardRef: React.RefObject<HTMLDivElement | null>;
-    updateBoard: (from: string, to: string) => Promise<void>;
+    updateBoard: (
+        from: string,
+        to: string,
+        promotion: "queen" | "rook" | "bishop" | "knight" | null,
+    ) => Promise<void>;
     boardVersion: number;
     setBoardVersion: React.Dispatch<React.SetStateAction<number>>;
+    needsPromotion: (from: string, to: string) => [boolean, Color];
+    setNeedPromotion: React.Dispatch<React.SetStateAction<[boolean, Color]>>;
 };
 
 const SNAPPY_TRANSITION = {
@@ -28,6 +34,8 @@ const Square = ({
     updateBoard,
     boardVersion,
     setBoardVersion,
+    needsPromotion,
+    setNeedPromotion,
 }: Props) => {
     const file = idx % 8;
     const rank = Math.floor(idx / 8);
@@ -61,8 +69,14 @@ const Square = ({
             setBoardVersion((prev) => prev + 1);
             return;
         }
+        let promotion = needsPromotion(square, targetSquare);
+        setNeedPromotion(promotion);
         // call your move logic here, e.g. updateBoard(currentSquare, targetSquare)
-        await updateBoard(square, targetSquare);
+        await updateBoard(
+            square,
+            targetSquare,
+            promotion[0] ? promotion[1] : null,
+        );
         setBoardVersion((prev) => prev + 1);
         return;
     };
