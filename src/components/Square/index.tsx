@@ -1,11 +1,7 @@
 import { motion } from "motion/react";
-import {
-    Color,
-    PendingPromotion,
-    PieceKind,
-    Piece as PieceType,
-} from "../../types";
+import { Color, PieceKind, Piece as PieceType } from "../../types";
 import Piece from "../Piece/index";
+import { PendingPromotion } from "../../dto";
 
 type Props = {
     square: string;

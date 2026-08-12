@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Color, Piece, PieceKind, Response, toPiece } from "../types";
+import { Color, Piece, PieceKind } from "../types";
 import { INITIAL_BOARD } from "./constants";
-import { MoveInfo } from "../dto";
+import { MoveInfo, Response, toPiece } from "../dto";
 
 class Board {
     private _board: Record<string, Piece | null>;

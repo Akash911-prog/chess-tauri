@@ -5,7 +5,8 @@ import Button from "../components/Button";
 import { useBoard } from "../hooks/BoardSrc";
 import PromotionMenu from "../components/PromotionMenu";
 import { useState } from "react";
-import { Color, PendingPromotion } from "../types";
+import { Color } from "../types";
+import { PendingPromotion } from "../dto";
 
 const Game = () => {
     let navigate = useNavigate();

@@ -3,7 +3,7 @@ import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
 import GameOverModal from "../GameOverScreen";
 import { useNavigate } from "react-router";
-import { PendingPromotion } from "../../types";
+import { PendingPromotion } from "../../dto";
 
 const Board = ({
     boardData,
