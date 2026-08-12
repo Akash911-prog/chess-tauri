@@ -188,6 +188,28 @@ impl super::Board {
         self.zobrist_hash = undo.zobrist_hash;
 
         let mv = undo.mv;
+
+        if mv.flags() == MoveFlag::EpCapture.bits() {
+            self.undo_ep_capture(mv);
+            return;
+        }
+
+        if (mv.flags() == MoveFlag::KingCastle.bits())
+            || (mv.flags() == MoveFlag::QueenCastle.bits())
+        {
+            self.undo_castle(mv);
+            return;
+        }
+
+        if (mv.flags() == MoveFlag::PromoQueen.bits())
+            || (mv.flags() == MoveFlag::PromoRook.bits())
+            || (mv.flags() == MoveFlag::PromoBishop.bits())
+            || (mv.flags() == MoveFlag::PromoKnight.bits())
+        {
+            self.undo_promotion(mv);
+            return;
+        }
+
         self.player_turn ^= 1;
 
         if mv.captured_piece() <= 5 {
@@ -265,9 +287,95 @@ impl super::Board {
 
         self.pieces[self.player_turn as usize][promoted as usize] ^= 1u64 << mv.to();
 
+        // A promotion can also be a capture (e.g. pawn takes rook while
+        // promoting) — clear the captured piece, same as the normal-move
+        // path does. Without this, both the new piece and the captured one
+        // occupy the destination square simultaneously.
+        if mv.captured_piece() <= 5 {
+            let captured_board =
+                self.pieces[(self.player_turn ^ 1) as usize][mv.captured_piece() as usize];
+            self.pieces[(self.player_turn ^ 1) as usize][mv.captured_piece() as usize] =
+                captured_board ^ (1u64 << mv.to());
+        }
+
+        self.castling_rights &= self.get_castling_rights(mv);
+        self.en_passant_square = 64;
+        self.halfmove_clock = 0; // pawn move, always resets
+
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
+        self.init();
+    }
+
+    fn undo_ep_capture(&mut self, mv: Move) {
+        self.player_turn ^= 1; // back to the side that made the move
+
+        self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^=
+            (1u64 << mv.from()) | (1u64 << mv.to());
+
+        let captured_idx = if (self.player_turn ^ 1) == 0 {
+            mv.to() + 8
+        } else {
+            mv.to() - 8
+        };
+        self.pieces[(self.player_turn ^ 1) as usize][PieceKind::Pawn as usize] ^=
+            1u64 << captured_idx;
+
+        self.fullmove_clock -= 1;
+        self.init();
+    }
+
+    fn undo_castle(&mut self, mv: Move) {
+        self.player_turn ^= 1; // back to the side that castled
+        let color = self.player_turn as usize;
+
+        self.pieces[color][PieceKind::King as usize] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+
+        match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::KingCastle => {
+                if color == 0 {
+                    self.pieces[color][PieceKind::Rook as usize] ^= (1u64 << 7) | (1u64 << 5);
+                } else {
+                    self.pieces[color][PieceKind::Rook as usize] ^= (1u64 << 63) | (1u64 << 61);
+                }
+            }
+            MoveFlag::QueenCastle => {
+                if color == 0 {
+                    self.pieces[color][PieceKind::Rook as usize] ^= (1u64 << 0) | (1u64 << 3);
+                } else {
+                    self.pieces[color][PieceKind::Rook as usize] ^= (1u64 << 56) | (1u64 << 59);
+                }
+            }
+            _ => {}
+        }
+
+        self.fullmove_clock -= 1;
+        self.init();
+    }
+
+    fn undo_promotion(&mut self, mv: Move) {
+        self.player_turn ^= 1; // back to the side that promoted
+        let color = self.player_turn as usize;
+
+        let promoted = match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::PromoQueen => PieceKind::Queen,
+            MoveFlag::PromoRook => PieceKind::Rook,
+            MoveFlag::PromoBishop => PieceKind::Bishop,
+            MoveFlag::PromoKnight => PieceKind::Knight,
+            _ => PieceKind::Pawn,
+        };
+
+        self.pieces[color][promoted as usize] ^= 1u64 << mv.to();
+        self.pieces[color][PieceKind::Pawn as usize] ^= 1u64 << mv.from();
+
+        if mv.captured_piece() <= 5 {
+            let captured_board = self.pieces[color ^ 1][mv.captured_piece() as usize];
+            self.pieces[color ^ 1][mv.captured_piece() as usize] =
+                captured_board ^ (1u64 << mv.to());
+        }
+
+        self.fullmove_clock -= 1;
         self.init();
     }
 }

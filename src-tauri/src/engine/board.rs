@@ -1,5 +1,6 @@
 pub mod check;
 pub mod from_fen;
+pub mod legal_moves;
 pub mod moves;
 pub mod validation;
 
@@ -339,7 +340,7 @@ impl Board {
         response
     }
 
-    fn index_to_notation(&self, index: u8) -> String {
+    pub fn index_to_notation(&self, index: u8) -> String {
         if index > 63 {
             return "".to_string();
         }
