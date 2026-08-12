@@ -49,6 +49,29 @@ impl Board {
         println!("total: {}", total);
         total
     }
+
+    fn debug_after_move(&mut self, from: u8, to: u8, depth: u32) {
+        let moves = self.generate_legal_moves();
+
+        for mv in moves {
+            if mv.from() == from && mv.to() == to {
+                self.make_move(mv);
+
+                println!(
+                    "\n===== AFTER {}{} =====",
+                    self.index_to_notation(from),
+                    self.index_to_notation(to)
+                );
+
+                self.perft_divide(depth);
+
+                // self.undo_move();
+                return;
+            }
+        }
+
+        panic!("Move not found");
+    }
 }
 
 fn setup_board(fen: &str) -> Board {
@@ -117,5 +140,8 @@ fn perft_position_4() {
 fn debug_divide() {
     let mut board =
         setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    board.perft_divide(2);
+    board.perft_divide(3);
+
+    board.debug_after_move(4, 3, 2);
+    board.debug_after_move(40, 12, 1);
 }
