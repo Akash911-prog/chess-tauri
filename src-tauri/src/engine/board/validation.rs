@@ -43,6 +43,7 @@ impl super::Board {
             self.color_occupency[(self.player_turn ^ 1) as usize],
             self.color_occupency[self.player_turn as usize],
             false,
+            self.en_passant_square,
         );
 
         let current_move = (1u64 << from) | (1u64 << to);
@@ -120,6 +121,7 @@ impl super::Board {
             self.color_occupency[(self.player_turn ^ 1) as usize],
             self.color_occupency[self.player_turn as usize],
             false,
+            self.en_passant_square,
         ) {
             Some(moves) => moves,
             None => return false,

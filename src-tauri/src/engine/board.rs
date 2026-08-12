@@ -506,6 +506,7 @@ impl Board {
                     enemy,
                     friendly,
                     false,
+                    self.en_passant_square,
                 );
 
                 let Some(mut destinations) = pseudo_moves else {
@@ -564,6 +565,7 @@ impl Board {
                     enemy,
                     friendly,
                     attack_only,
+                    self.en_passant_square,
                 ) {
                     all_moves.push(moves);
                 }

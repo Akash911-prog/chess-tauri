@@ -45,12 +45,13 @@ impl MoveGen {
         enemy: BitBoard,
         friendly: BitBoard,
         attack_only: bool,
+        ep_square: u8,
     ) -> Option<BitBoard> {
         if attack_only {
             return match piece {
                 Knight => self.get_knight_moves(idx, friendly, attack_only),
                 King => self.get_king_attacks(idx, friendly),
-                Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only),
+                Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only, ep_square),
                 Rook => Some(BitBoard(self.gen_rook_attacks(idx, occupied))),
                 Bishop => Some(BitBoard(self.gen_bishop_attacks(idx, occupied))),
                 Queen => Some(BitBoard(self.gen_queen_attacks(idx, occupied))),
@@ -59,7 +60,7 @@ impl MoveGen {
         match piece {
             Knight => self.get_knight_moves(idx, friendly, attack_only),
             King => self.get_king_attacks(idx, friendly),
-            Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only),
+            Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only, ep_square),
             Rook => self.get_rook_moves(idx, occupied, friendly),
             Bishop => self.get_bishop_moves(idx, occupied, friendly),
             Queen => self.get_queen_moves(idx, occupied, friendly),
@@ -92,6 +93,7 @@ impl MoveGen {
         occupied: BitBoard,
         enemy: BitBoard,
         attack_only: bool,
+        ep_square: u8,
     ) -> Option<BitBoard> {
         let single = self.pawn_push_single[color as usize][idx] & !occupied;
 
@@ -104,8 +106,14 @@ impl MoveGen {
         }
 
         moves |= self.pawn_attack[color as usize][idx] & enemy;
+        if (ep_square < 64)
+            && ((self.pawn_attack[color as usize][idx] & BitBoard(1u64 << ep_square)) != 0)
+        {
+            moves |= BitBoard(1u64 << ep_square);
+        }
+
         if attack_only {
-            return Some(self.pawn_attack[color as usize][idx] & enemy);
+            return Some(BitBoard(self.pawn_attack[color as usize][idx]));
         }
         return Some(moves);
     }

@@ -38,6 +38,7 @@ impl super::Board {
                     enemy,
                     friendly,
                     false,
+                    self.en_passant_square,
                 ) else {
                     continue;
                 };

@@ -49,7 +49,14 @@ impl super::Board {
             ),
             (
                 self.move_gen
-                    .get_pawn_attacks(king_idx, self.player_turn, total_occ, enemy_occ, true)
+                    .get_pawn_attacks(
+                        king_idx,
+                        self.player_turn,
+                        total_occ,
+                        enemy_occ,
+                        true,
+                        self.en_passant_square,
+                    )
                     .unwrap_or(BitBoard(0))
                     & self.pieces[enemy][PieceKind::Pawn as usize],
                 PieceKind::Pawn,
