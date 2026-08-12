@@ -258,7 +258,7 @@ impl super::Board {
         let promoted = match MoveFlag::from_bits(mv.flags()) {
             MoveFlag::PromoQueen => PieceKind::Queen,
             MoveFlag::PromoRook => PieceKind::Rook,
-            MoveFlag::PromoBishop => PieceKind::Rook,
+            MoveFlag::PromoBishop => PieceKind::Bishop,
             MoveFlag::PromoKnight => PieceKind::Knight,
             _ => PieceKind::Pawn,
         };

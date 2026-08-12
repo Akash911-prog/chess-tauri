@@ -165,3 +165,26 @@ fn double_check_king_must_move() {
     assert!(info.is_check);
     assert_eq!(info.count, 2);
 }
+
+// #[test]
+// fn promotion_produces_correct_piece_type() {
+//     for (promo_notation, expected) in [
+//         ("q", PieceKind::Queen),
+//         ("r", PieceKind::Rook),
+//         ("b", PieceKind::Bishop),
+//         ("n", PieceKind::Knight),
+//     ] {
+//         let mut board = setup_board("8/P7/8/8/8/8/8/4K2k w - - 0 1");
+//         let mv = /* build a1-a8 pawn move with the corresponding PromoX flag */;
+//         board.make_move(mv);
+
+//         for kind in [PieceKind::Queen, PieceKind::Rook, PieceKind::Bishop, PieceKind::Knight] {
+//             let bit = board.pieces[0][kind as usize] & (1u64 << 56);
+//             if kind == expected {
+//                 assert_ne!(bit, 0, "promoting to {promo_notation} should set the {kind:?} bitboard");
+//             } else {
+//                 assert_eq!(bit, 0, "promoting to {promo_notation} should NOT touch the {kind:?} bitboard");
+//             }
+//         }
+//     }
+// }
