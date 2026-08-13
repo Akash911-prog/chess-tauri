@@ -1,11 +1,8 @@
-use crate::{
-    dto::MoveInfo,
-    engine::{
-        bitboard::BitBoard,
-        constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
-        movegen::MoveFlag,
-        types::{CastlingRights, PieceKind},
-    },
+use crate::engine::{
+    bitboard::BitBoard,
+    constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
+    movegen::MoveFlag,
+    types::{CastlingRights, PieceKind},
 };
 
 impl super::Board {
@@ -44,6 +41,7 @@ impl super::Board {
             self.color_occupency[self.player_turn as usize],
             false,
             self.en_passant_square,
+            self.kings,
         );
 
         let current_move = (1u64 << from) | (1u64 << to);
@@ -91,7 +89,13 @@ impl super::Board {
         let enemy = (self.player_turn ^ 1) as usize;
         let queen_board = self.pieces[enemy][PieceKind::Queen as usize];
 
-        let rook_ray = self.move_gen.gen_rook_attacks(king_idx, hypothetical_occ);
+        let rook_ray = self.move_gen.gen_rook_attacks(
+            king_idx,
+            hypothetical_occ,
+            self.player_turn,
+            false,
+            self.kings,
+        );
         let exposes_king = (BitBoard(rook_ray)
             & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board))
             != 0;
@@ -122,6 +126,7 @@ impl super::Board {
             self.color_occupency[self.player_turn as usize],
             false,
             self.en_passant_square,
+            self.kings,
         ) {
             Some(moves) => moves,
             None => return false,

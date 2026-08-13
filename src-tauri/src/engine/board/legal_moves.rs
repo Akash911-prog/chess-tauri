@@ -39,6 +39,7 @@ impl super::Board {
                     friendly,
                     false,
                     self.en_passant_square,
+                    self.kings,
                 ) else {
                     continue;
                 };

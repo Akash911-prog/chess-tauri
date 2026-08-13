@@ -27,6 +27,7 @@ pub struct Board {
     pub pieces: [[BitBoard; 6]; 2],
     pub color_occupency: [BitBoard; 2],
     pub total_occupency: BitBoard,
+    pub kings: [BitBoard; 2],
 
     pub player_turn: u8,       // 0 = white, 1 = black
     pub castling_rights: u8,   //KQkq
@@ -62,6 +63,7 @@ impl Board {
             pieces: INITIAL_BOARD,
             color_occupency: [BitBoard::EMPTY, BitBoard::EMPTY],
             total_occupency: BitBoard::EMPTY,
+            kings: [BitBoard::EMPTY, BitBoard::EMPTY],
 
             player_turn: 0,
             castling_rights: 0x0F,
@@ -84,6 +86,7 @@ impl Board {
         self.pieces = INITIAL_BOARD;
         self.color_occupency = [BitBoard::EMPTY, BitBoard::EMPTY];
         self.total_occupency = BitBoard::EMPTY;
+        self.kings = [BitBoard::EMPTY, BitBoard::EMPTY];
         self.player_turn = 0;
         self.castling_rights = 0x0F;
         self.promotion = 0;
@@ -151,6 +154,11 @@ impl Board {
 
         self.update_enemy_attack_mask(self.player_turn ^ 1);
         self.pinned_pieces = self.compute_pinned_pieces();
+
+        self.kings = [
+            self.pieces[0][PieceKind::King as usize],
+            self.pieces[1][PieceKind::King as usize],
+        ]
     }
 
     pub fn update_state(&mut self) {
@@ -378,14 +386,20 @@ impl Board {
 
         let occ_without_friendly = self.total_occupency & !self.color_occupency[player];
 
-        let rook_pinners = BitBoard(
-            self.move_gen
-                .gen_rook_attacks(king_idx, occ_without_friendly),
-        ) & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board);
-        let bishop_pinners = BitBoard(
-            self.move_gen
-                .gen_bishop_attacks(king_idx, occ_without_friendly),
-        ) & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board);
+        let rook_pinners = BitBoard(self.move_gen.gen_rook_attacks(
+            king_idx,
+            occ_without_friendly,
+            self.player_turn,
+            false,
+            self.kings,
+        )) & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board);
+        let bishop_pinners = BitBoard(self.move_gen.gen_bishop_attacks(
+            king_idx,
+            occ_without_friendly,
+            self.player_turn,
+            false,
+            self.kings,
+        )) & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board);
 
         for mut pinners in [rook_pinners, bishop_pinners] {
             while let Some(pinner_sq) = pinners.pop_lsb() {
@@ -416,7 +430,7 @@ impl Board {
     /// A square index from `0` to `63`.
     ///
     /// Returns `64` if the file or rank is outside the valid chess board.
-    fn notation_to_index(&self, notation: &str) -> u8 {
+    pub fn notation_to_index(&self, notation: &str) -> u8 {
         let file = notation.chars().nth(0).unwrap() as u8 - 'a' as u8;
         let rank = notation.chars().nth(1).unwrap() as u8 - '1' as u8;
 
@@ -507,6 +521,7 @@ impl Board {
                     friendly,
                     false,
                     self.en_passant_square,
+                    self.kings,
                 );
 
                 let Some(mut destinations) = pseudo_moves else {
@@ -566,6 +581,7 @@ impl Board {
                     friendly,
                     attack_only,
                     self.en_passant_square,
+                    self.kings,
                 ) {
                     all_moves.push(moves);
                 }

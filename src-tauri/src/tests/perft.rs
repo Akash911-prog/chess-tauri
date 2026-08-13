@@ -108,6 +108,8 @@ fn perft_kiwipete() {
     assert_eq!(board.perft(1), 48);
     assert_eq!(board.perft(2), 2_039);
     assert_eq!(board.perft(3), 97_862);
+    assert_eq!(board.perft(4), 4_085_603);
+    // assert_eq!(board.perft(10), 29_344_805_396_643_919);
     // depth 4 (4_085_603) — manual run only, same reasoning as above.
 }
 
@@ -136,12 +138,21 @@ fn perft_position_4() {
     assert_eq!(board.perft(3), 9_467);
 }
 
-#[test]
-fn debug_divide() {
-    let mut board = setup_board("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
-    board.perft_divide(4);
+// #[test]
+// fn debug_divide() {
+//     let mut board =
+//         setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+//     board.perft_divide(4);
 
-    board.debug_after_move(25, 17, 3);
-    board.debug_after_move(39, 34, 2);
-    board.debug_after_move(17, 23, 1);
-}
+//     board.debug_after_move(8, 24, 3);
+//     board.debug_after_move(
+//         board.notation_to_index("e8"),
+//         board.notation_to_index("g8"),
+//         2,
+//     );
+//     board.debug_after_move(
+//         board.notation_to_index("e1"),
+//         board.notation_to_index("g1"),
+//         1,
+//     );
+// }

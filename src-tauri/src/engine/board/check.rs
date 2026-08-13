@@ -63,14 +63,28 @@ impl super::Board {
             ),
             (
                 self.move_gen
-                    .get_rook_moves(king_idx, total_occ, friendly_occ)
+                    .get_rook_moves(
+                        king_idx,
+                        total_occ,
+                        friendly_occ,
+                        self.player_turn,
+                        true,
+                        self.kings,
+                    )
                     .unwrap_or(BitBoard(0))
                     & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board),
                 PieceKind::Rook,
             ),
             (
                 self.move_gen
-                    .get_bishop_moves(king_idx, total_occ, friendly_occ)
+                    .get_bishop_moves(
+                        king_idx,
+                        total_occ,
+                        friendly_occ,
+                        self.player_turn,
+                        true,
+                        self.kings,
+                    )
                     .unwrap_or(BitBoard(0))
                     & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board),
                 PieceKind::Bishop,
@@ -124,9 +138,13 @@ impl super::Board {
         match attack_piece {
             PieceKind::Bishop => {
                 let occupied = BitBoard(1u64 << to);
-                let attack_map = self
-                    .move_gen
-                    .gen_bishop_attacks(check_info.check_square[0] as usize, occupied);
+                let attack_map = self.move_gen.gen_bishop_attacks(
+                    check_info.check_square[0] as usize,
+                    occupied,
+                    self.player_turn,
+                    false,
+                    self.kings,
+                );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])
                     == 0
@@ -137,9 +155,13 @@ impl super::Board {
             }
             PieceKind::Rook => {
                 let occupied = BitBoard(1u64 << to);
-                let attack_map = self
-                    .move_gen
-                    .gen_rook_attacks(check_info.check_square[0] as usize, occupied);
+                let attack_map = self.move_gen.gen_rook_attacks(
+                    check_info.check_square[0] as usize,
+                    occupied,
+                    self.player_turn,
+                    false,
+                    self.kings,
+                );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])
                     == 0
@@ -150,9 +172,13 @@ impl super::Board {
             }
             PieceKind::Queen => {
                 let occupied = BitBoard(1u64 << to);
-                let attack_map = self
-                    .move_gen
-                    .gen_queen_attacks(check_info.check_square[0] as usize, occupied);
+                let attack_map = self.move_gen.gen_queen_attacks(
+                    check_info.check_square[0] as usize,
+                    occupied,
+                    self.player_turn,
+                    false,
+                    self.kings,
+                );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])
                     == 0
