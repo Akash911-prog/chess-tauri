@@ -167,14 +167,14 @@ impl MoveGen {
             let k = 1u64 << sq;
             let mut attacks = 0u64;
 
-            attacks |= k.wrapping_shl(8); // Up
-            attacks |= k.wrapping_shr(8); // Down
-            attacks |= (k.wrapping_shr(1)) & !FILE_A; // Left
-            attacks |= (k.wrapping_shl(1)) & !FILE_H; // Right
-            attacks |= (k.wrapping_shl(7)) & !FILE_H; // Up-Left
-            attacks |= (k.wrapping_shl(9)) & !FILE_A; // Up-Right
-            attacks |= (k.wrapping_shr(9)) & !FILE_H; // Down-Left
-            attacks |= (k.wrapping_shr(7)) & !FILE_A; // Down-Right
+            attacks |= k << 8;
+            attacks |= k >> 8;
+            attacks |= (k >> 1) & !FILE_H; // left
+            attacks |= (k << 1) & !FILE_A; // right
+            attacks |= (k << 7) & !FILE_H; // up-left
+            attacks |= (k << 9) & !FILE_A; // up-right
+            attacks |= (k >> 9) & !FILE_H; // down-left
+            attacks |= (k >> 7) & !FILE_A; // down-right
 
             self.king_moves[sq] = attacks;
         }

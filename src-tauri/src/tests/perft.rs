@@ -138,10 +138,10 @@ fn perft_position_4() {
 
 #[test]
 fn debug_divide() {
-    let mut board =
-        setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    board.perft_divide(3);
+    let mut board = setup_board("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    board.perft_divide(4);
 
-    board.debug_after_move(4, 3, 2);
-    board.debug_after_move(40, 12, 1);
+    board.debug_after_move(25, 17, 3);
+    board.debug_after_move(39, 34, 2);
+    board.debug_after_move(17, 23, 1);
 }

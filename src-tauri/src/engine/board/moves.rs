@@ -99,6 +99,7 @@ impl super::Board {
 
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
+        self.en_passant_square = 64;
 
         self.init();
     }

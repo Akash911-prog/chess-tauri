@@ -68,13 +68,15 @@ impl super::Board {
 
         // castle destinations are two squares away — not in the king attack
         // table, so they need to be tested explicitly.
-        let castle_targets: [u8; 2] = if self.player_turn == 0 {
-            [6, 2]
+        let castle_targets: [(u8, u8); 2] = if self.player_turn == 0 {
+            [(4, 6), (4, 2)]
         } else {
-            [62, 58]
+            [(60, 62), (60, 58)]
         };
-        for &to in &castle_targets {
-            self.try_push_king_move(from, to, moves);
+        for &mv in &castle_targets {
+            if mv.0 == from {
+                self.try_push_king_move(from, mv.1, moves);
+            }
         }
     }
 

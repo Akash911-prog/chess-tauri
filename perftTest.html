@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Difference Calculator</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            background: #111;
+            color: #eee;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 500px;
+            resize: vertical;
+            background: #1b1b1b;
+            color: #eee;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #777;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+        }
+
+        #result {
+            margin-top: 30px;
+            background: #1b1b1b;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 15px;
+        }
+
+        .positive {
+            color: #5cff8d;
+        }
+
+        .negative {
+            color: #ff6565;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Move Difference Calculator</h1>
+
+    <div class="inputs">
+        <div>
+            <h3>Input 1</h3>
+            <textarea id="input1" placeholder="Paste first result here..."></textarea>
+        </div>
+
+        <div>
+            <h3>Input 2</h3>
+            <textarea id="input2" placeholder="Paste second result here..."></textarea>
+        </div>
+    </div>
+
+    <button onclick="calculateDifference()">Compare</button>
+
+    <div id="result">
+        <pre id="output">Results will appear here...</pre>
+    </div>
+
+    <script>
+        function parseMoves(text) {
+            const moves = new Map();
+
+            for (const line of text.split(/\r?\n/)) {
+                const match = line.match(/^([a-h][1-8][a-h][1-8]):\s*(-?\d+)/);
+
+                if (!match) continue;
+
+                const move = match[1];
+                const value = Number(match[2]);
+
+                moves.set(move, value);
+            }
+
+            return moves;
+        }
+
+        function calculateDifference() {
+            const first = parseMoves(document.getElementById("input1").value);
+            const second = parseMoves(document.getElementById("input2").value);
+
+            const allMoves = new Set([
+                ...first.keys(),
+                ...second.keys()
+            ]);
+
+            const results = [];
+
+            for (const move of allMoves) {
+                const value1 = first.get(move);
+                const value2 = second.get(move);
+
+                if (value1 === undefined) {
+                    results.push({
+                        move,
+                        diff: null,
+                        text: `${move}: only in input 2 (${value2})`
+                    });
+                    continue;
+                }
+
+                if (value2 === undefined) {
+                    results.push({
+                        move,
+                        diff: null,
+                        text: `${move}: only in input 1 (${value1})`
+                    });
+                    continue;
+                }
+
+                const diff = value2 - value1;
+
+                results.push({
+                    move,
+                    diff,
+                    text: `${move}: ${diff >= 0 ? "+" : ""}${diff}`
+                });
+            }
+
+            // Sort by absolute difference, largest first
+            results.sort((a, b) => {
+                if (a.diff === null) return 1;
+                if (b.diff === null) return -1;
+
+                return Math.abs(b.diff) - Math.abs(a.diff);
+            });
+
+            document.getElementById("output").innerHTML =
+                results.map(result => {
+                    if (result.diff === null) {
+                        return result.text;
+                    }
+
+                    const className =
+                        result.diff > 0
+                            ? "positive"
+                            : result.diff < 0
+                                ? "negative"
+                                : "";
+
+                    return `<span class="${className}">${result.text}</span>`;
+                }).join("\n");
+        }
+    </script>
+
+</body>
+
+</html>
