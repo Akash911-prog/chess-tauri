@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::dto::PromotionPiece;
+use crate::{dto::PromotionPiece, engine::constants::CENTIPAWN_MESURE};
 
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -19,7 +19,7 @@ impl Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PieceKind {
     Pawn = 0,
     Knight = 1,
@@ -27,6 +27,12 @@ pub enum PieceKind {
     Rook = 3,
     Queen = 4,
     King = 5,
+}
+
+impl PieceKind {
+    pub fn value(&self) -> i32 {
+        CENTIPAWN_MESURE[*self as usize]
+    }
 }
 
 #[repr(u8)]

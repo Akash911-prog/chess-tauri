@@ -21,6 +21,11 @@ impl BitBoard {
         self.0
     }
 
+    #[inline(always)]
+    pub fn count_ones(&self) -> u32 {
+        self.0.count_ones()
+    }
+
     /// Construct a BitBoard with a single bit set at `index` (0..63).
     #[inline(always)]
     pub const fn from_square(index: u8) -> Self {

@@ -391,14 +391,14 @@ impl Board {
             occ_without_friendly,
             self.player_turn,
             false,
-            self.kings,
+            &self.kings,
         )) & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board);
         let bishop_pinners = BitBoard(self.move_gen.gen_bishop_attacks(
             king_idx,
             occ_without_friendly,
             self.player_turn,
             false,
-            self.kings,
+            &self.kings,
         )) & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board);
 
         for mut pinners in [rook_pinners, bishop_pinners] {
@@ -521,7 +521,7 @@ impl Board {
                     friendly,
                     false,
                     self.en_passant_square,
-                    self.kings,
+                    &self.kings,
                 );
 
                 let Some(mut destinations) = pseudo_moves else {
@@ -581,12 +581,16 @@ impl Board {
                     friendly,
                     attack_only,
                     self.en_passant_square,
-                    self.kings,
+                    &self.kings,
                 ) {
                     all_moves.push(moves);
                 }
             }
         }
         all_moves
+    }
+
+    pub fn unoccupied_or_safe(&self) -> BitBoard {
+        !self.enemy_attack_mask & !self.total_occupency
     }
 }

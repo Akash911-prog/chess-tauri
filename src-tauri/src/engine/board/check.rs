@@ -69,7 +69,7 @@ impl super::Board {
                         friendly_occ,
                         self.player_turn,
                         true,
-                        self.kings,
+                        &self.kings,
                     )
                     .unwrap_or(BitBoard(0))
                     & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board),
@@ -83,7 +83,7 @@ impl super::Board {
                         friendly_occ,
                         self.player_turn,
                         true,
-                        self.kings,
+                        &self.kings,
                     )
                     .unwrap_or(BitBoard(0))
                     & (self.pieces[enemy][PieceKind::Bishop as usize] | queen_board),
@@ -143,7 +143,7 @@ impl super::Board {
                     occupied,
                     self.player_turn,
                     false,
-                    self.kings,
+                    &self.kings,
                 );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])
@@ -160,7 +160,7 @@ impl super::Board {
                     occupied,
                     self.player_turn,
                     false,
-                    self.kings,
+                    &self.kings,
                 );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])
@@ -177,7 +177,7 @@ impl super::Board {
                     occupied,
                     self.player_turn,
                     false,
-                    self.kings,
+                    &self.kings,
                 );
 
                 if (attack_map & self.pieces[self.player_turn as usize][PieceKind::King as usize])

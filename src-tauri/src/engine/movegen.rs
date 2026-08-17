@@ -46,7 +46,7 @@ impl MoveGen {
         friendly: BitBoard,
         attack_only: bool,
         ep_square: u8,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
         if attack_only {
             return match piece {
@@ -239,7 +239,7 @@ impl MoveGen {
         occupied: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> u64 {
         let mut attacks = 0u64;
         let mut occupied = occupied;
@@ -306,7 +306,7 @@ impl MoveGen {
         occupied: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> u64 {
         let mut attacks = 0u64;
         let mut occupied = occupied;
@@ -369,7 +369,7 @@ impl MoveGen {
         occupied: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> u64 {
         self.gen_rook_attacks(sq, occupied, color, attack_only, kings)
             | self.gen_bishop_attacks(sq, occupied, color, attack_only, kings)
@@ -407,7 +407,7 @@ impl MoveGen {
         friendly: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
         Some(self.gen_bishop_attacks(idx, occupied, color, attack_only, kings) & !friendly)
     }
@@ -419,7 +419,7 @@ impl MoveGen {
         friendly: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
         Some(self.gen_rook_attacks(idx, occupied, color, attack_only, kings) & !friendly)
     }
@@ -431,7 +431,7 @@ impl MoveGen {
         friendly: BitBoard,
         color: u8,
         attack_only: bool,
-        kings: [BitBoard; 2],
+        kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
         Some(self.gen_queen_attacks(idx, occupied, color, attack_only, kings) & !friendly)
     }

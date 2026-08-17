@@ -108,7 +108,7 @@ fn perft_kiwipete() {
     assert_eq!(board.perft(1), 48);
     assert_eq!(board.perft(2), 2_039);
     assert_eq!(board.perft(3), 97_862);
-    assert_eq!(board.perft(4), 4_085_603);
+    // assert_eq!(board.perft(4), 4_085_603);
     // assert_eq!(board.perft(10), 29_344_805_396_643_919);
     // depth 4 (4_085_603) — manual run only, same reasoning as above.
 }

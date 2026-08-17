@@ -41,7 +41,7 @@ impl super::Board {
             self.color_occupency[self.player_turn as usize],
             false,
             self.en_passant_square,
-            self.kings,
+            &self.kings,
         );
 
         let current_move = (1u64 << from) | (1u64 << to);
@@ -94,7 +94,7 @@ impl super::Board {
             hypothetical_occ,
             self.player_turn,
             false,
-            self.kings,
+            &self.kings,
         );
         let exposes_king = (BitBoard(rook_ray)
             & (self.pieces[enemy][PieceKind::Rook as usize] | queen_board))
@@ -126,7 +126,7 @@ impl super::Board {
             self.color_occupency[self.player_turn as usize],
             false,
             self.en_passant_square,
-            self.kings,
+            &self.kings,
         ) {
             Some(moves) => moves,
             None => return false,
