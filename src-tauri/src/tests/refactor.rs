@@ -146,7 +146,9 @@ fn incremental_occupancy_matches_full_recompute_castle() {
 fn attack_by_type_fold_matches_old_attack_mask() {
     let mut board =
         setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    board.update_attack_mask();
+    board._update_attack_mask();
+    let white = board.attack_mask[0];
+    let black = board.attack_mask[1];
     assert_eq!(
         board.attack_mask[0],
         board.attack_by_type[0]

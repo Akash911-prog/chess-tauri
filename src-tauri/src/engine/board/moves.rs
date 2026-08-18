@@ -78,10 +78,9 @@ impl super::Board {
         self.pieces[self.player_turn as usize][move_info.piece() as usize] =
             piece_board ^ ((1u64 << move_info.from()) | 1u64 << move_info.to());
 
+        self.update(move_info, self.player_turn as usize);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
-
-        self.init();
     }
 
     fn do_ep_capture(&mut self, mv: Move) {
@@ -97,11 +96,10 @@ impl super::Board {
         self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^=
             (1u64 << mv.from()) | (1u64 << mv.to());
 
+        self.update(mv, self.player_turn as usize);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
         self.en_passant_square = 64;
-
-        self.init();
     }
 
     /// Executes the board changes required for a castling move.
@@ -162,7 +160,7 @@ impl super::Board {
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        self.init();
+        self.update(mv, color);
     }
 
     /// Reverts the most recently recorded move.
@@ -227,7 +225,7 @@ impl super::Board {
 
         self.fullmove_clock -= 1;
 
-        self.init();
+        self.update(mv, self.player_turn as usize);
     }
 
     /// Returns the castling rights for the current position.
@@ -303,10 +301,9 @@ impl super::Board {
         self.en_passant_square = 64;
         self.halfmove_clock = 0; // pawn move, always resets
 
+        self.update(mv, self.player_turn as usize);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
-
-        self.init();
     }
 
     fn undo_ep_capture(&mut self, mv: Move) {
@@ -324,7 +321,7 @@ impl super::Board {
             1u64 << captured_idx;
 
         self.fullmove_clock -= 1;
-        self.init();
+        self.update(mv, self.player_turn as usize);
     }
 
     fn undo_castle(&mut self, mv: Move) {
@@ -352,7 +349,7 @@ impl super::Board {
         }
 
         self.fullmove_clock -= 1;
-        self.init();
+        self.update(mv, color);
     }
 
     fn undo_promotion(&mut self, mv: Move) {
@@ -377,6 +374,6 @@ impl super::Board {
         }
 
         self.fullmove_clock -= 1;
-        self.init();
+        self.update(mv, color);
     }
 }

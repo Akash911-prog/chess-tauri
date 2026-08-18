@@ -166,7 +166,13 @@ impl Board {
 
     pub fn update(&mut self, mv: Move, mover_color: usize) {
         self.update_state_incremental(mv, mover_color);
-        self.update_attack_mask();
+        self.update_attack_mask_incremental(mv, mover_color as u8);
+        self.pinned_pieces = self.compute_pinned_pieces();
+
+        self.kings = [
+            self.pieces[0][PieceKind::King as usize],
+            self.pieces[1][PieceKind::King as usize],
+        ]
     }
 
     /// Computes the combined attack bitboard for every piece of one type/color,
@@ -208,7 +214,7 @@ impl Board {
     /// Fills every type-slot for both colors, then derives attack_mask by
     /// folding each color's 6 slots — same OUTPUT as before, fixed fold-seed
     /// bug included (each color starts from EMPTY, not the previous color's mask).
-    pub fn update_attack_mask(&mut self) {
+    pub fn _update_attack_mask(&mut self) {
         for color in 0..2u8 {
             for piece_idx in 0..6 {
                 self.attack_by_type[color as usize][piece_idx] =
@@ -221,6 +227,110 @@ impl Board {
         self.attack_mask[1] = self.attack_by_type[1]
             .iter()
             .fold(BitBoard::EMPTY, |a, b| a | *b);
+    }
+
+    pub fn update_attack_mask_incremental(&mut self, mv: Move, mover_color: u8) {
+        // squares whose occupancy changed this move — matches update_state_incremental's
+        // per-flag handling, since the affected-line check needs ALL of them, not just from/to
+        let mut changed_squares = vec![mv.from(), mv.to()];
+        match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::EpCapture => {
+                let captured_idx = if mover_color == 0 {
+                    mv.to() - 8
+                } else {
+                    mv.to() + 8
+                };
+                changed_squares.push(captured_idx);
+            }
+            MoveFlag::KingCastle => {
+                if mover_color == 0 {
+                    changed_squares.extend([7, 5]);
+                } else {
+                    changed_squares.extend([63, 61]);
+                }
+            }
+            MoveFlag::QueenCastle => {
+                if mover_color == 0 {
+                    changed_squares.extend([0, 3]);
+                } else {
+                    changed_squares.extend([56, 59]);
+                }
+            }
+            _ => {}
+        }
+
+        let opponent_color = mover_color ^ 1;
+
+        // 1. mover's own type — always stale
+        self.attack_by_type[mover_color as usize][mv.piece() as usize] =
+            self.compute_attack_for_type(mover_color, mv.piece() as usize);
+
+        // castling also moves the rook — recompute Rook slot too
+        if matches!(
+            MoveFlag::from_bits(mv.flags()),
+            MoveFlag::KingCastle | MoveFlag::QueenCastle
+        ) {
+            self.attack_by_type[mover_color as usize][3 /* Rook */] =
+                self.compute_attack_for_type(mover_color, 3);
+        }
+
+        // 2. captured piece's type — its slot shrank (or its type's presence changed)
+        if mv.captured_piece() < 6 {
+            self.attack_by_type[opponent_color as usize][mv.captured_piece() as usize] =
+                self.compute_attack_for_type(opponent_color, mv.captured_piece() as usize);
+        }
+
+        // 3. any slider (Bishop=2, Rook=3, Queen=4), either color, whose pieces
+        //    might see through a changed square — over-inclusive on purpose,
+        //    false positives just cost a redundant recompute, not a wrong mask
+        for color in 0..2u8 {
+            for slider_idx in [2usize, 3, 4] {
+                // already forced above: mover's own type
+                if color == mover_color && slider_idx == mv.piece() as usize {
+                    continue;
+                }
+                // already forced above: captured piece's type
+                if color == opponent_color
+                    && mv.captured_piece() < 6
+                    && slider_idx == mv.captured_piece() as usize
+                {
+                    continue;
+                }
+
+                let mut pieces_of_type = self.pieces[color as usize][slider_idx];
+                let mut affected = false;
+                while pieces_of_type.0 != 0 {
+                    let sq = match pieces_of_type.pop_lsb() {
+                        Some(s) => s,
+                        None => break,
+                    };
+                    if changed_squares.iter().any(|&cs| self.shares_line(sq, cs)) {
+                        affected = true;
+                        break;
+                    }
+                }
+                if affected {
+                    self.attack_by_type[color as usize][slider_idx] =
+                        self.compute_attack_for_type(color, slider_idx);
+                }
+            }
+        }
+
+        self.attack_mask[0] = self.attack_by_type[0]
+            .iter()
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.attack_mask[1] = self.attack_by_type[1]
+            .iter()
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
+    }
+
+    fn shares_line(&self, a: u8, b: u8) -> bool {
+        let (ra, fa) = (a / 8, a % 8);
+        let (rb, fb) = (b / 8, b % 8);
+        ra == rb                                                   // same rank
+        || fa == fb                                             // same file
+        || (ra as i16 - fa as i16) == (rb as i16 - fb as i16)   // same diagonal
+        || (ra as i16 + fa as i16) == (rb as i16 + fb as i16) // same anti-diagonal
     }
 
     /// Incrementally updates color_occupency and total_occupency for a move,
