@@ -11,20 +11,29 @@ use crate::engine::{
     types::PieceKind,
 };
 
+const MAX_PLY: usize = 128;
+
 pub struct Search<'a> {
     board: &'a mut Board,
     pub nodes_visited: u64,
     tt: TranspositionTable,
+    move_buffers: Vec<Vec<Move>>,
     // later: tt: TranspositionTable, killers: [[Move; 2]; MAX_DEPTH], stop_time: Instant, ...
 }
 
 impl<'a> Search<'a> {
     pub fn new(board: &'a mut Board) -> Self {
+        let mut move_buffers = Vec::with_capacity(MAX_PLY);
+
+        for _ in 0..MAX_PLY {
+            move_buffers.push(Vec::with_capacity(64));
+        }
+
         Search {
             board,
             nodes_visited: 0,
             tt: TranspositionTable::new(64),
-            // later: tt: TranspositionTable, killers: [[Move; 2]; MAX_DEPTH], stop_time: Instant, ...
+            move_buffers,
         }
     }
 
@@ -51,7 +60,9 @@ impl<'a> Search<'a> {
             }
         }
 
-        let mut legal_moves = self.board.generate_legal_moves();
+        let mut legal_moves = std::mem::take(&mut self.move_buffers[ply as usize]);
+
+        self.board.generate_legal_moves(&mut legal_moves);
 
         legal_moves.sort_unstable_by_key(|mv| {
             if Some(*mv) == tt_move {
@@ -75,14 +86,14 @@ impl<'a> Search<'a> {
         let mut best_score = i32::MIN + 1;
         let mut best_move = None;
 
-        for mv in legal_moves {
-            self.board.make_move(mv);
+        for mv in &legal_moves {
+            self.board.make_move(*mv);
             let score = -self.negamax(depth - 1, ply + 1, -beta, -alpha);
             self.board.undo_move();
 
             if score > best_score {
                 best_score = score;
-                best_move = Some(mv);
+                best_move = Some(*mv);
             }
             alpha = alpha.max(best_score);
 
@@ -116,7 +127,8 @@ impl<'a> Search<'a> {
             .probe(self.board.zobrist_hash)
             .and_then(|entry| entry.best_move);
 
-        let mut possible_moves = self.board.generate_legal_moves();
+        let mut possible_moves = Vec::with_capacity(64);
+        self.board.generate_legal_moves(&mut possible_moves);
 
         possible_moves.sort_unstable_by_key(|mv| {
             if Some(*mv) == tt_move {

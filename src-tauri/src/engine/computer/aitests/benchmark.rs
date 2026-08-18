@@ -31,7 +31,7 @@ fn timed_negamax() {
 
     // 2. Run current benchmark
     let start = Instant::now();
-    let s1 = search.negamax(5, 0, i32::MIN + 1, i32::MAX);
+    let s1 = search.negamax(10, 0, i32::MIN + 1, i32::MAX);
     let elapsed = start.elapsed();
 
     // 3. Calculate current metrics

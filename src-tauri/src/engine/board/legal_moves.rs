@@ -10,8 +10,8 @@ impl super::Board {
     /// through — pseudo-legal generation filtered by `validate_move`
     /// (pins + check evasion) for non-king pieces, and `validate_king_move`
     /// (attack-mask safety + castling) for the king.
-    pub fn generate_legal_moves(&self) -> Vec<Move> {
-        let mut moves = Vec::new();
+    pub fn generate_legal_moves(&self, mut moves: &mut Vec<Move>) {
+        moves.clear();
 
         let color = self.player_turn as usize;
         let friendly = self.color_occupency[color];
@@ -63,8 +63,6 @@ impl super::Board {
                 }
             }
         }
-
-        moves
     }
 
     fn collect_king_moves(&self, from: u8, moves: &mut Vec<Move>) {

@@ -1,15 +1,14 @@
 use crate::engine::board::Board;
 
 impl Board {
-    /// Counts leaf nodes at `depth` by exhaustively making and unmaking
-    /// every legal move. Used only to validate move generation + make/unmake
-    /// against known-correct reference counts — not a search algorithm.
     fn perft(&mut self, depth: u32) -> u64 {
         if depth == 0 {
             return 1;
         }
 
-        let moves = self.generate_legal_moves();
+        let mut moves = Vec::with_capacity(64);
+        self.generate_legal_moves(&mut moves);
+
         let mut nodes = 0;
 
         for mv in moves {
@@ -21,20 +20,17 @@ impl Board {
         nodes
     }
 
-    /// Same as `perft`, but prints the leaf count contributed by each
-    /// individual first move instead of just the total. Compare this
-    /// output against a reference engine's divide output for the same
-    /// FEN/depth — whichever move's count doesn't match is where the bug
-    /// lives. Recurse: set up the position after playing just that move,
-    /// run divide again one depth lower, repeat until the mismatch is
-    /// isolated to a single move at depth 1.
     fn perft_divide(&mut self, depth: u32) -> u64 {
-        let moves = self.generate_legal_moves();
+        let mut moves = Vec::with_capacity(64);
+        self.generate_legal_moves(&mut moves);
+
         let mut total = 0;
 
         for mv in moves {
             self.make_move(mv);
+
             let nodes = if depth <= 1 { 1 } else { self.perft(depth - 1) };
+
             self.undo_move();
 
             println!(
@@ -43,6 +39,7 @@ impl Board {
                 self.index_to_notation(mv.to()),
                 nodes
             );
+
             total += nodes;
         }
 
@@ -51,7 +48,8 @@ impl Board {
     }
 
     fn debug_after_move(&mut self, from: u8, to: u8, depth: u32) {
-        let moves = self.generate_legal_moves();
+        let mut moves = Vec::with_capacity(64);
+        self.generate_legal_moves(&mut moves);
 
         for mv in moves {
             if mv.from() == from && mv.to() == to {

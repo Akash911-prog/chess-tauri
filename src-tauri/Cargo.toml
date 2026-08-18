@@ -28,3 +28,4 @@ lto = "fat"          # or true — cross-crate inlining, biggest single win for 
 codegen-units = 1     # lets LLVM optimize globally instead of per-codegen-unit
 opt-level = 3
 panic = "abort"       # optional: drops unwinding tables, only safe if you don't rely on catch_unwind
+debug = true
