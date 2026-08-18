@@ -49,10 +49,10 @@ impl<'a> Evaluator<'a> {
                     //     "color: {}, piece: {}, square: {}, mg: {}, eg: {}, phase: {}, score: {}, taper: {}, piece value: {}",
                     //     color, piece_idx, square, mg, eg, phase, score[color], self.taper(mg, eg, phase), PieceKind::from_idx(piece_idx).value()
                     // );
-                    println!(
-                        "color: {}, piece: {}, square: {}, mobility: {}, running_total: {}",
-                        color, piece_idx, square, mobility, score[color]
-                    );
+                    // println!(
+                    //     "color: {}, piece: {}, square: {}, mobility: {}, running_total: {}",
+                    //     color, piece_idx, square, mobility, score[color]
+                    // );
                 }
             }
         }

@@ -3,7 +3,13 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
-use crate::engine::{game::Game, types::Color};
+use crate::engine::{
+    board::Board,
+    computer::negamax::Search,
+    game::Game,
+    movegen::{Move, MoveFlag},
+    types::{Color, PieceKind},
+};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -143,6 +149,97 @@ pub enum CommandError {
 pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), CommandError> {
     println!("{:?}", move_info);
     Ok(())
+}
+
+fn build_response(mv: Move, board: &Board) -> Response {
+    let from = mv.from();
+    let to = mv.to();
+
+    let mut square_changes: Vec<SquareChange> = vec![];
+
+    let mut promotion_kind: Option<PieceKindDto> = None;
+
+    match MoveFlag::from_bits(mv.flags()) {
+        MoveFlag::EpCapture => {
+            let captured_idx = if board.player_turn == 0 {
+                to - 8
+            } else {
+                to + 8
+            };
+            square_changes.push(SquareChange::new(
+                board.index_to_notation(captured_idx),
+                None,
+            ));
+        }
+        MoveFlag::KingCastle => {
+            let rook_from = if board.player_turn == 0 { 7 } else { 63 };
+            let rook_to = if board.player_turn == 0 { 5 } else { 61 };
+            square_changes.push(SquareChange::new(
+                board.index_to_notation(rook_to),
+                Some(PieceInfo::new(
+                    PieceKindDto::Rook,
+                    Color::from(board.player_turn),
+                )),
+            ));
+            square_changes.push(SquareChange::new(board.index_to_notation(rook_from), None));
+        }
+        MoveFlag::QueenCastle => {
+            let rook_from = if board.player_turn == 0 { 0 } else { 56 };
+            let rook_to = if board.player_turn == 0 { 3 } else { 59 };
+            square_changes.push(SquareChange::new(
+                board.index_to_notation(rook_to),
+                Some(PieceInfo::new(
+                    PieceKindDto::Rook,
+                    Color::from(board.player_turn),
+                )),
+            ));
+            square_changes.push(SquareChange::new(board.index_to_notation(rook_from), None));
+        }
+        MoveFlag::PromoBishop => {
+            promotion_kind = Some(PieceKindDto::Bishop);
+        }
+        MoveFlag::PromoKnight => {
+            promotion_kind = Some(PieceKindDto::Knight);
+        }
+        MoveFlag::PromoQueen => {
+            promotion_kind = Some(PieceKindDto::Queen);
+        }
+        MoveFlag::PromoRook => {
+            promotion_kind = Some(PieceKindDto::Rook);
+        }
+        _ => {}
+    }
+
+    let move_changes = board.build_move_changes(
+        from,
+        to,
+        PieceKind::from_idx(mv.piece() as usize),
+        promotion_kind,
+    );
+
+    square_changes.extend(move_changes);
+
+    Response {
+        move_type: MoveType::Normal,
+        changes: square_changes,
+        condition: board.get_game_state(),
+        winner: Some(Color::from(board.player_turn)),
+    }
+}
+
+#[tauri::command]
+pub fn get_move(app: AppHandle) -> Result<Legality, CommandError> {
+    let game_state = app.state::<Mutex<Game>>();
+    let game = game_state.lock().unwrap();
+
+    let mut board = game.board.lock().unwrap();
+    let mut evaluator = Search::new(&mut (*board));
+    let result = evaluator.find_best_move(5);
+
+    let response = build_response(result.0, &board);
+    let result = Legality::Legal(response);
+
+    Ok(result)
 }
 
 #[tauri::command]

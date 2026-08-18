@@ -23,7 +23,8 @@ pub fn run() {
             dto::update,
             dto::show_window,
             dto::undo_move,
-            dto::restart
+            dto::restart,
+            dto::get_move
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

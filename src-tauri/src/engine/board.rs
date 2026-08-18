@@ -156,7 +156,7 @@ impl Board {
         self.init_state();
 
         self.init_attack_mask();
-        self.pinned_pieces = self.compute_pinned_pieces();
+        self.pinned_pieces = self.compute_pinned_pieces(self.player_turn);
 
         self.kings = [
             self.pieces[0][PieceKind::King as usize],
@@ -167,7 +167,7 @@ impl Board {
     pub fn update(&mut self, mv: Move, mover_color: usize) {
         self.update_state_incremental(mv, mover_color);
         self.update_attack_mask_incremental(mv, mover_color as u8);
-        self.pinned_pieces = self.compute_pinned_pieces();
+        self.pinned_pieces = self.compute_pinned_pieces((mover_color ^ 1) as u8);
 
         self.kings = [
             self.pieces[0][PieceKind::King as usize],
@@ -462,7 +462,7 @@ impl Board {
     /// Builds the {from: empty, to: piece} change pair for a normal/promoting move.
     /// Uses `promoted_kind` in place of the original piece type when present —
     /// this is what makes promotions actually render correctly.
-    fn build_move_changes(
+    pub fn build_move_changes(
         &self,
         from: u8,
         to: u8,
@@ -598,27 +598,26 @@ impl Board {
     /// The resulting mask is stored in `enemy_attack_mask` and is used,
     /// among other things, when validating king moves and castling.
     fn init_attack_mask(&mut self) {
-        let white_possible_moves = self.get_all_legal_moves(0, true);
-        let black_possible_moves = self.get_all_legal_moves(1, true);
-        let mask: BitBoard = white_possible_moves
+        for color in 0..2u8 {
+            for piece_idx in 0..6 {
+                self.attack_by_type[color as usize][piece_idx] =
+                    self.compute_attack_for_type(color, piece_idx);
+            }
+        }
+        self.attack_mask[0] = self.attack_by_type[0]
             .iter()
-            .fold(BitBoard::EMPTY, |acc, &x| acc | x);
-
-        self.attack_mask[0] = mask;
-
-        let mask: BitBoard = black_possible_moves
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.attack_mask[1] = self.attack_by_type[1]
             .iter()
-            .fold(BitBoard::EMPTY, |acc, &x| acc | x);
-
-        self.attack_mask[1] = mask;
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
     }
 
     // board/check.rs, or a new board/pins.rs — your call
-    pub fn compute_pinned_pieces(&self) -> [Option<BitBoard>; 64] {
+    pub fn compute_pinned_pieces(&self, color: u8) -> [Option<BitBoard>; 64] {
         let mut pinned: [Option<BitBoard>; 64] = [None; 64];
 
-        let player = self.player_turn as usize;
-        let enemy = (self.player_turn ^ 1) as usize;
+        let player = color as usize;
+        let enemy = (color ^ 1) as usize;
         let king_board = self.pieces[player][PieceKind::King as usize];
         let king_idx = king_board.lsb() as usize;
         let queen_board = self.pieces[enemy][PieceKind::Queen as usize];
@@ -727,7 +726,7 @@ impl Board {
     ///
     /// This function only checks whether moves exist. It does not distinguish
     /// between checkmate and stalemate.
-    fn get_game_state(&self) -> GameState {
+    pub fn get_game_state(&self) -> GameState {
         let check_info = self.check_for_check();
         let has_legal_moves = self.any_legal_move_exists();
 
