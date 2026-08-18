@@ -151,9 +151,11 @@ pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), CommandErro
     Ok(())
 }
 
-fn build_response(mv: Move, board: &Board) -> Response {
+fn build_response(mv: Move, board: &mut Board) -> Response {
     let from = mv.from();
     let to = mv.to();
+
+    board.player_turn ^= 1;
 
     let mut square_changes: Vec<SquareChange> = vec![];
 
@@ -217,26 +219,41 @@ fn build_response(mv: Move, board: &Board) -> Response {
         promotion_kind,
     );
 
+    println!("color: {}", board.player_turn);
+
     square_changes.extend(move_changes);
+
+    let game_state = board.get_game_state();
+    let mut winner: Option<Color> = None;
+    if game_state == GameState::Checkmate {
+        winner = Some(Color::from(board.player_turn ^ 1));
+    }
+
+    board.player_turn ^= 1;
 
     Response {
         move_type: MoveType::Normal,
         changes: square_changes,
-        condition: board.get_game_state(),
-        winner: Some(Color::from(board.player_turn)),
+        condition: game_state,
+        winner: winner,
     }
 }
 
 #[tauri::command]
 pub fn get_move(app: AppHandle) -> Result<Legality, CommandError> {
+    println!("get_move");
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 
     let mut board = game.board.lock().unwrap();
-    let mut evaluator = Search::new(&mut (*board));
-    let result = evaluator.find_best_move(5);
+    let result: (Move, i32);
+    {
+        let mut evaluator = Search::new(&mut (*board));
+        result = evaluator.find_best_move(4);
+    }
+    board.make_move(result.0);
 
-    let response = build_response(result.0, &board);
+    let response = build_response(result.0, &mut board);
     let result = Legality::Legal(response);
 
     Ok(result)
@@ -244,6 +261,7 @@ pub fn get_move(app: AppHandle) -> Result<Legality, CommandError> {
 
 #[tauri::command]
 pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandError> {
+    println!("update");
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 

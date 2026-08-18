@@ -31,7 +31,7 @@ const Menu = ({ className = "" }) => {
                 >
                     <Button
                         scheme="primary"
-                        onClick={() => navigate("/game")}
+                        onClick={() => navigate("/game?mode=local")}
                         className=""
                     >
                         Local PVP
@@ -47,7 +47,7 @@ const Menu = ({ className = "" }) => {
                 >
                     <Button
                         scheme="secondary"
-                        onClick={() => navigate("/game")}
+                        onClick={() => navigate("/game?mode=ai")}
                         className=""
                     >
                         Against Ai

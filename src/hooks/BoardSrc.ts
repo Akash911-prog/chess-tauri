@@ -83,6 +83,15 @@ export function useBoard() {
         [sync],
     );
 
+    const makeCompMove = useCallback(async () => {
+        await boardRef.current.makeCompMove();
+        sync();
+    }, [sync]);
+
+    const player_turn = useCallback(() => {
+        return boardRef.current.player_turn();
+    }, []);
+
     return {
         board,
         getPiece,
@@ -96,5 +105,7 @@ export function useBoard() {
         setFinished,
         getFinishedState,
         needsPromotion,
+        makeCompMove,
+        player_turn,
     };
 }

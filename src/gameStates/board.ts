@@ -127,6 +127,52 @@ class Board {
         this._board = this.prevboardStack.pop() as Record<string, Piece | null>;
         invoke("undo_move");
     }
+
+    async makeCompMove(): Promise<void> {
+        try {
+            const result = await invoke<
+                | { kind: string; data: Response }
+                | { kind: string; data: undefined }
+            >("get_move");
+
+            if (result.kind !== "legal") {
+                return;
+            }
+
+            let data = result.data;
+
+            console.log("comp Move", data);
+
+            if (!data) {
+                return;
+            }
+            this.prevboardStack.push({ ...this._board });
+
+            data.changes.forEach((change) => {
+                this._board[change.square] = toPiece(change);
+            });
+
+            if (data.condition === "checkmate") {
+                this.finished = true;
+                this.condition = data.condition;
+                this.winColor = data.winner;
+                this.msg[data.condition] = `Checkmate! ${data.winner} wins.`;
+            } else if (data.condition === "stalemate") {
+                this.finished = true;
+                this.condition = data.condition;
+                this.winColor = "";
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    player_turn(): Color {
+        if (this._prevboardStack.length % 2 === 0) {
+            return Color.White;
+        }
+        return Color.Black;
+    }
 }
 
 export default Board;

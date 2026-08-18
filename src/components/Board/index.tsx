@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
 import GameOverModal from "../GameOverScreen";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { PendingPromotion } from "../../dto";
+import { Color } from "../../types";
 
 const Board = ({
     boardData,
@@ -16,18 +17,18 @@ const Board = ({
 }) => {
     let {
         board,
-        clear,
-        getPiece,
-        removePiece,
-        setPiece,
-        undoMove,
         reset,
         updateBoard,
         finished,
         setFinished,
         getFinishedState,
         needsPromotion,
+        makeCompMove,
+        player_turn,
     } = boardData;
+
+    let [searchParams] = useSearchParams();
+    let mode = searchParams.get("mode");
 
     let navigate = useNavigate();
 
@@ -44,6 +45,14 @@ const Board = ({
     }
 
     let { condition, msg } = getFinishedState();
+
+    if (mode === "ai") {
+        useEffect(() => {
+            if (player_turn() === Color.Black) {
+                makeCompMove().then(() => setBoardVersion((prev) => prev + 1));
+            }
+        }, [boardVersion]);
+    }
 
     return (
         <div
