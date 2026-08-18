@@ -44,13 +44,19 @@ pub struct Undo {
 }
 
 impl Undo {
-    pub fn new(mv: Move, castling_rights: u8, en_passant_square: u8, halfmove_clock: u8) -> Undo {
+    pub fn new(
+        mv: Move,
+        castling_rights: u8,
+        en_passant_square: u8,
+        halfmove_clock: u8,
+        zobrist_hash: u64,
+    ) -> Undo {
         Undo {
             mv,
             castling_rights,
             en_passant_square,
             halfmove_clock,
-            zobrist_hash: 0,
+            zobrist_hash,
         }
     }
 }

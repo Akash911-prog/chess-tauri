@@ -18,11 +18,17 @@ impl super::Board {
     ///
     /// * `move_info` - The packed [`Move`] describing the move to perform.
     pub fn make_move(&mut self, move_info: Move) {
+        let old_castling_rights = self.castling_rights;
+        let old_en_passant = self.en_passant_square;
+        let mover_color = self.player_turn;
+        let old_hash = self.zobrist_hash;
+
         let undo = Undo::new(
             move_info,
-            self.castling_rights,
-            self.en_passant_square,
+            old_castling_rights,
+            old_en_passant,
             self.halfmove_clock,
+            old_hash,
         );
 
         self.history.push(undo);
@@ -81,9 +87,15 @@ impl super::Board {
         self.update(move_info, self.player_turn as usize);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
+
+        self.update_zobrist_hash(move_info, mover_color, old_castling_rights, old_en_passant);
     }
 
     fn do_ep_capture(&mut self, mv: Move) {
+        let old_castling_rights = self.castling_rights;
+        let old_en_passant = self.en_passant_square;
+        let mover_color = self.player_turn;
+
         let capturing_idx = if (self.player_turn ^ 1) == 0 {
             mv.to() + 8
         } else {
@@ -100,6 +112,8 @@ impl super::Board {
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
         self.en_passant_square = 64;
+
+        self.update_zobrist_hash(mv, mover_color, old_castling_rights, old_en_passant);
     }
 
     /// Executes the board changes required for a castling move.
@@ -111,6 +125,9 @@ impl super::Board {
     ///
     /// * `mv` - The [`Move`] containing the castling move information.
     fn do_castle(&mut self, mv: Move) {
+        let old_castling_rights = self.castling_rights;
+        let old_en_passant = self.en_passant_square;
+        let mover_color = self.player_turn;
         let color = self.player_turn as usize;
         let rook_board = self.pieces[color][PieceKind::Rook as usize];
 
@@ -157,10 +174,11 @@ impl super::Board {
             _ => {}
         };
 
+        self.update(mv, color);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
 
-        self.update(mv, color);
+        self.update_zobrist_hash(mv, mover_color, old_castling_rights, old_en_passant);
     }
 
     /// Reverts the most recently recorded move.
@@ -274,6 +292,9 @@ impl super::Board {
     }
 
     fn do_promotion(&mut self, mv: Move) {
+        let old_castling_rights = self.castling_rights;
+        let old_en_passant = self.en_passant_square;
+        let mover_color = self.player_turn;
         self.pieces[self.player_turn as usize][PieceKind::Pawn as usize] ^= 1u64 << mv.from();
 
         let promoted = match MoveFlag::from_bits(mv.flags()) {
@@ -304,6 +325,8 @@ impl super::Board {
         self.update(mv, self.player_turn as usize);
         self.player_turn ^= 1;
         self.fullmove_clock += 1;
+
+        self.update_zobrist_hash(mv, mover_color, old_castling_rights, old_en_passant);
     }
 
     fn undo_ep_capture(&mut self, mv: Move) {

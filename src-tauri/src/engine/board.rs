@@ -221,6 +221,108 @@ impl Board {
         hash
     }
 
+    #[inline(always)]
+    fn update_zobrist_hash(
+        &mut self,
+        mv: Move,
+        mover_color: u8,
+        old_castling_rights: u8,
+        old_en_passant: u8,
+    ) {
+        let color = mover_color as usize;
+        let opponent = color ^ 1;
+
+        // Remove old state components.
+        self.zobrist_hash ^= Self::zobrist_castling(old_castling_rights);
+        self.zobrist_hash ^= Self::zobrist_ep(old_en_passant);
+
+        // Side to move changes every move.
+        self.zobrist_hash ^= Self::zobrist_side();
+
+        match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::EpCapture => {
+                // Moving pawn.
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::Pawn as usize, mv.from() as usize);
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::Pawn as usize, mv.to() as usize);
+
+                // Captured pawn.
+                let captured_sq = if color == 0 { mv.to() - 8 } else { mv.to() + 8 };
+
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(opponent, PieceKind::Pawn as usize, captured_sq as usize);
+            }
+
+            MoveFlag::KingCastle | MoveFlag::QueenCastle => {
+                // King.
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::King as usize, mv.from() as usize);
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::King as usize, mv.to() as usize);
+
+                let (rook_from, rook_to) = match (color, MoveFlag::from_bits(mv.flags())) {
+                    (0, MoveFlag::KingCastle) => (7, 5),
+                    (0, MoveFlag::QueenCastle) => (0, 3),
+                    (1, MoveFlag::KingCastle) => (63, 61),
+                    (1, MoveFlag::QueenCastle) => (56, 59),
+                    _ => unreachable!(),
+                };
+
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::Rook as usize, rook_from);
+                self.zobrist_hash ^= Self::zobrist_piece(color, PieceKind::Rook as usize, rook_to);
+            }
+
+            MoveFlag::PromoQueen
+            | MoveFlag::PromoRook
+            | MoveFlag::PromoBishop
+            | MoveFlag::PromoKnight => {
+                // Pawn disappears from its starting square.
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, PieceKind::Pawn as usize, mv.from() as usize);
+
+                let promoted = match MoveFlag::from_bits(mv.flags()) {
+                    MoveFlag::PromoQueen => PieceKind::Queen,
+                    MoveFlag::PromoRook => PieceKind::Rook,
+                    MoveFlag::PromoBishop => PieceKind::Bishop,
+                    MoveFlag::PromoKnight => PieceKind::Knight,
+                    _ => unreachable!(),
+                };
+
+                // Promoted piece appears on destination.
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, promoted as usize, mv.to() as usize);
+
+                // Promotion can capture.
+                if mv.captured_piece() < 6 {
+                    self.zobrist_hash ^= Self::zobrist_piece(
+                        opponent,
+                        mv.captured_piece() as usize,
+                        mv.to() as usize,
+                    );
+                }
+            }
+
+            _ => {
+                // Normal move.
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, mv.piece() as usize, mv.from() as usize);
+                self.zobrist_hash ^=
+                    Self::zobrist_piece(color, mv.piece() as usize, mv.to() as usize);
+
+                // Normal capture.
+                if mv.captured_piece() < 6 {
+                    self.zobrist_hash ^= Self::zobrist_piece(
+                        opponent,
+                        mv.captured_piece() as usize,
+                        mv.to() as usize,
+                    );
+                }
+            }
+        }
+    }
+
     pub fn update(&mut self, mv: Move, mover_color: usize) {
         self.update_state_incremental(mv, mover_color);
         self.update_attack_mask_incremental(mv, mover_color as u8);
@@ -230,8 +332,6 @@ impl Board {
             self.pieces[0][PieceKind::King as usize],
             self.pieces[1][PieceKind::King as usize],
         ];
-
-        self.zobrist_hash = self.compute_zobrist_hash();
     }
 
     /// Computes the combined attack bitboard for every piece of one type/color,
