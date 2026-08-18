@@ -46,7 +46,7 @@ impl super::Board {
 
                 while let Some(to) = destinations.pop_lsb() {
                     let to = to as u8;
-                    if !self.validate_move(piece_type, from, to) {
+                    if !self.validate_move(piece_type, from, to, None) {
                         continue;
                     }
                     self.push_pseudo_legal_move(piece_idx, from, to, &mut moves);

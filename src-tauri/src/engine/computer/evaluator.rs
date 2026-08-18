@@ -69,7 +69,7 @@ impl<'a> Evaluator<'a> {
             piece,
             self.board.total_occupency,
             idx as usize,
-            self.board.player_turn,
+            color as u8,
             self.board.color_occupency[(self.board.player_turn ^ 1) as usize],
             self.board.color_occupency[self.board.player_turn as usize],
             false,

@@ -1,5 +1,6 @@
 use crate::engine::{
     bitboard::BitBoard,
+    board::check::CheckInfo,
     constants::{B_KING_CASTLE, B_QUEEN_CASTLE, W_KING_CASTLE, W_QUEEN_CASTLE},
     movegen::MoveFlag,
     types::{CastlingRights, PieceKind},
@@ -21,7 +22,13 @@ impl super::Board {
     ///
     /// `true` if the destination is present in the generated move set,
     /// otherwise `false`.
-    pub fn validate_move(&self, piece_type: PieceKind, from: u8, to: u8) -> bool {
+    pub fn validate_move(
+        &self,
+        piece_type: PieceKind,
+        from: u8,
+        to: u8,
+        check_info: Option<CheckInfo>,
+    ) -> bool {
         if let Some(pin_line) = self.pinned_pieces[from as usize] {
             if (pin_line & BitBoard(1u64 << to)) == 0 {
                 return false;
@@ -48,7 +55,10 @@ impl super::Board {
 
         if let Some(possible_moves) = possible_moves {
             if (possible_moves & current_move) == (1u64 << to) {
-                let check_info = self.check_for_check();
+                let check_info = match check_info {
+                    Some(check_info) => check_info,
+                    None => self.check_for_check(),
+                };
                 if check_info.is_check {
                     return self.validate_move_with_check(to, &check_info, piece_type);
                 }

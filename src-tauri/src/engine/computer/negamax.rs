@@ -20,7 +20,6 @@ impl<'a> Search<'a> {
         self.nodes_visited += 1;
 
         let legal_moves = self.board.generate_legal_moves();
-        println!("legal moves: {}", legal_moves.len());
 
         if legal_moves.is_empty() {
             if self.board.check_for_check().is_check {

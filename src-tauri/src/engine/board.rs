@@ -304,7 +304,7 @@ impl Board {
                 square_changes.extend(changes);
                 move_type = MoveType::Castling;
             }
-        } else if !self.validate_move(piece_type, from, to) {
+        } else if !self.validate_move(piece_type, from, to, None) {
             return Ok(Legality::Illegal);
         }
 
@@ -508,6 +508,8 @@ impl Board {
         let enemy = self.color_occupency[(color ^ 1) as usize];
         let occupied = self.total_occupency;
 
+        let check_info = self.check_for_check();
+
         for piece_idx in 0..6 {
             let piece_type = PieceKind::from_idx(piece_idx);
             let mut piece_board = self.pieces[color as usize][piece_idx];
@@ -534,7 +536,7 @@ impl Board {
                         if self.validate_king_move(from, to).0.is_some() {
                             return true;
                         }
-                    } else if self.validate_move(piece_type, from, to) {
+                    } else if self.validate_move(piece_type, from, to, Some(check_info)) {
                         return true;
                     }
                 }
@@ -564,7 +566,7 @@ impl Board {
         let enemy = self.color_occupency[(color ^ 1) as usize];
         let occupied = self.total_occupency;
 
-        let mut all_moves = Vec::new();
+        let mut all_moves = Vec::with_capacity(16);
         for piece_idx in 0..6 {
             let piece_type = PieceKind::from_idx(piece_idx);
             let mut bb = self.pieces[color as usize][piece_idx];
