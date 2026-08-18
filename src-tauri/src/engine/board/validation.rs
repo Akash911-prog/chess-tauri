@@ -142,7 +142,7 @@ impl super::Board {
             None => return false,
         };
 
-        let possible_moves = possible_moves & !self.enemy_attack_mask;
+        let possible_moves = possible_moves & !self.attack_mask[(self.player_turn ^ 1) as usize];
         possible_moves & (1u64 << to) != 0
     }
 
@@ -279,7 +279,7 @@ impl super::Board {
 
         // King cannot currently be in check, cross an attacked square,
         // or land on an attacked square.
-        if !self.enemy_attack_mask & safe_mask != safe_mask {
+        if !self.attack_mask[(self.player_turn ^ 1) as usize] & safe_mask != safe_mask {
             // println!("king in check");
             return (None, (65, 65));
         }

@@ -22,11 +22,11 @@ impl<'a> Evaluator<'a> {
     pub fn static_eval(&self) -> i32 {
         let phase = self.compute_phase();
         let mut score = [0i32; 2];
-        let unoccupied_or_safe = self.board.unoccupied_or_safe();
 
         // println!("phase: {}", phase);
 
         for color in 0..2 {
+            let unoccupied_or_safe = self.board.unoccupied_or_safe(color);
             for piece_idx in 0..6 {
                 let mut pieces = self.board.pieces[color][piece_idx];
                 while let Some(square) = pieces.pop_lsb() {
@@ -49,6 +49,10 @@ impl<'a> Evaluator<'a> {
                     //     "color: {}, piece: {}, square: {}, mg: {}, eg: {}, phase: {}, score: {}, taper: {}, piece value: {}",
                     //     color, piece_idx, square, mg, eg, phase, score[color], self.taper(mg, eg, phase), PieceKind::from_idx(piece_idx).value()
                     // );
+                    println!(
+                        "color: {}, piece: {}, square: {}, mobility: {}, running_total: {}",
+                        color, piece_idx, square, mobility, score[color]
+                    );
                 }
             }
         }
@@ -70,8 +74,8 @@ impl<'a> Evaluator<'a> {
             self.board.total_occupency,
             idx as usize,
             color as u8,
-            self.board.color_occupency[(self.board.player_turn ^ 1) as usize],
-            self.board.color_occupency[self.board.player_turn as usize],
+            self.board.color_occupency[color ^ 1],
+            self.board.color_occupency[color],
             false,
             self.board.en_passant_square,
             &self.board.kings,
@@ -103,14 +107,14 @@ impl<'a> Evaluator<'a> {
                 let i = count.min(KING_MOBILITY_MG.len() - 1);
                 (KING_MOBILITY_MG[i], KING_MOBILITY_EG[i])
             }
-            PieceKind::Pawn => return self.compute_pawn_bonus(sq, moves, color),
+            PieceKind::Pawn => return self.compute_pawn_bonus(sq, moves),
         };
 
         self.interpolate(mg_score, eg_score, phase)
     }
 
-    fn compute_pawn_bonus(&self, sq: u8, moves: BitBoard, color: usize) -> i32 {
-        let rank = if color == 0 { sq / 8u8 } else { 7 - sq / 8u8 }; // flip for black
+    fn compute_pawn_bonus(&self, sq: u8, moves: BitBoard) -> i32 {
+        let rank = 7 - sq / 8u8; // flip for black
         let is_blocked = ((moves & !self.board.total_occupency) == 0) as i32;
 
         PAWN_ADVANCE_BONUS[rank as usize] + (PAWN_BLOCKED_PENALTY[rank as usize] * is_blocked)

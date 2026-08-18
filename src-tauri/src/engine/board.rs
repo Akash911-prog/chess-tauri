@@ -37,7 +37,7 @@ pub struct Board {
     pub halfmove_clock: u8,    // clock
     pub fullmove_clock: u16,
 
-    pub enemy_attack_mask: BitBoard,
+    pub attack_mask: [BitBoard; 2],
     pub pinned_pieces: [Option<BitBoard>; 64],
 
     pub zobrist_hash: u64, // TODO: Add the actualy hash logic and table logic later. Version 2.0
@@ -75,7 +75,7 @@ impl Board {
 
             zobrist_hash: 0,
 
-            enemy_attack_mask: BitBoard::EMPTY,
+            attack_mask: [BitBoard::EMPTY, BitBoard::EMPTY],
             pinned_pieces: [None; 64],
 
             move_gen: MoveGen::new(),
@@ -153,7 +153,7 @@ impl Board {
     pub fn init(&mut self) {
         self.update_state();
 
-        self.update_enemy_attack_mask(self.player_turn ^ 1);
+        self.update_attack_mask();
         self.pinned_pieces = self.compute_pinned_pieces();
 
         self.kings = [
@@ -366,13 +366,18 @@ impl Board {
     ///
     /// The resulting mask is stored in `enemy_attack_mask` and is used,
     /// among other things, when validating king moves and castling.
-    fn update_enemy_attack_mask(&mut self, color: u8) {
-        let enemy_possible_moves = self.get_all_legal_moves(color, true);
-        let mask: BitBoard = enemy_possible_moves
+    fn update_attack_mask(&mut self) {
+        let white_possible_moves = self.get_all_legal_moves(0, true);
+        let black_possible_moves = self.get_all_legal_moves(1, true);
+        let mask: BitBoard = white_possible_moves
             .iter()
             .fold(BitBoard::EMPTY, |acc, &x| acc | x);
 
-        self.enemy_attack_mask = mask;
+        self.attack_mask[0] = mask;
+
+        let mask: BitBoard = black_possible_moves.iter().fold(mask, |acc, &x| acc | x);
+
+        self.attack_mask[1] = mask;
     }
 
     // board/check.rs, or a new board/pins.rs — your call
@@ -593,7 +598,7 @@ impl Board {
         all_moves
     }
 
-    pub fn unoccupied_or_safe(&self) -> BitBoard {
-        !self.enemy_attack_mask & !self.total_occupency
+    pub fn unoccupied_or_safe(&self, color: usize) -> BitBoard {
+        !self.attack_mask[color] & !self.total_occupency
     }
 }

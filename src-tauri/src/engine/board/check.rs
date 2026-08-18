@@ -30,7 +30,7 @@ impl super::Board {
         let king_board = self.pieces[player][PieceKind::King as usize];
         let king_idx = king_board.lsb() as usize;
 
-        if (self.enemy_attack_mask & king_board) == 0 {
+        if (self.attack_mask[enemy] & king_board) == 0 {
             return info;
         }
 

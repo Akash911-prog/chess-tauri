@@ -115,7 +115,7 @@ impl super::Board {
 
         // enemy_attack_mask depends on the position, so it needs recomputing here —
         // replace this with whatever your actual attack-mask generation method is called
-        self.update_enemy_attack_mask(player_turn ^ 1);
+        self.update_attack_mask();
 
         // zobrist_hash left as-is per your TODO; set to 0 explicitly if you want a clean slate
         self.zobrist_hash = 0;
