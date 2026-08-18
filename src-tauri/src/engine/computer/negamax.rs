@@ -53,24 +53,26 @@ impl<'a> Search<'a> {
     }
 
     pub fn find_best_move(&mut self, depth: u8) -> (Move, i32) {
-        // root-level loop, calls self.negamax per candidate move
         let possible_moves = self.board.generate_legal_moves();
 
         let mut best_move = possible_moves[0];
-        let mut best_score = i32::MIN + 1;
+        let mut alpha = i32::MIN + 1;
+        let beta = i32::MAX;
 
         for mv in possible_moves {
             self.board.make_move(mv);
-            let score = -self.negamax(depth - 1, 1, i32::MIN + 1, i32::MAX);
+
+            let score = -self.negamax(depth - 1, 1, -beta, -alpha);
+
             self.board.undo_move();
 
-            if score > best_score {
-                best_score = score;
+            if score > alpha {
+                alpha = score;
                 best_move = mv;
             }
         }
 
-        (best_move, best_score)
+        (best_move, alpha)
     }
 
     pub fn quiescence(&mut self, alpha: i32, beta: i32) -> i32 {

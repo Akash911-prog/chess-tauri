@@ -23,3 +23,8 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[profile.release]
+lto = "fat"          # or true — cross-crate inlining, biggest single win for a tight eval/negamax loop
+codegen-units = 1     # lets LLVM optimize globally instead of per-codegen-unit
+opt-level = 3
+panic = "abort"       # optional: drops unwinding tables, only safe if you don't rely on catch_unwind

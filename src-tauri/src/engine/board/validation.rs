@@ -29,6 +29,12 @@ impl super::Board {
         to: u8,
         check_info: Option<CheckInfo>,
     ) -> bool {
+        if (self.pieces[(self.player_turn ^ 1) as usize][PieceKind::King as usize] & (1u64 << to))
+            != 0
+        {
+            return false;
+        }
+
         if let Some(pin_line) = self.pinned_pieces[from as usize] {
             if (pin_line & BitBoard(1u64 << to)) == 0 {
                 return false;
@@ -325,19 +331,27 @@ impl super::Board {
         self.castling_rights & right.bits() != 0
     }
 
-    pub fn validate_promotion(&self, to: u8, piece_type: PieceKind) -> bool {
-        if piece_type != PieceKind::Pawn {
-            return false;
+    pub fn validate_generated_move(
+        &self,
+        piece_type: PieceKind,
+        from: u8,
+        to: u8,
+        check_info: &CheckInfo,
+    ) -> bool {
+        if let Some(pin_line) = self.pinned_pieces[from as usize] {
+            if (pin_line & BitBoard(1u64 << to)) == 0 {
+                return false;
+            }
         }
 
-        if (self.player_turn == 0) && to >= 56 {
-            return true;
+        if piece_type == PieceKind::Pawn && to == self.en_passant_square {
+            return self.validate_ep(from, to);
         }
 
-        if (self.player_turn == 1) && to <= 7 {
-            return true;
+        if check_info.is_check {
+            return self.validate_move_with_check(to, check_info, piece_type);
         }
 
-        false
+        true
     }
 }

@@ -38,6 +38,13 @@ impl super::Board {
 
         let queen_board = self.pieces[enemy][PieceKind::Queen as usize];
 
+        debug_assert!(
+            king_board != 0,
+            "King bitboard is empty: player={}, board={:?}",
+            player,
+            self
+        );
+
         // (attack pattern from king square, enemy pieces that pattern can hit, kind if matched)
         let checkers_by_kind = [
             (

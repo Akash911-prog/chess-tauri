@@ -410,7 +410,13 @@ impl MoveGen {
         attack_only: bool,
         kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
-        Some(self.gen_bishop_attacks(idx, occupied, color, attack_only, kings) & !friendly)
+        let attacks = self.gen_bishop_attacks(idx, occupied, color, attack_only, kings);
+
+        if attack_only {
+            Some(BitBoard(attacks) & !friendly)
+        } else {
+            Some(BitBoard(attacks) & !friendly & !kings[(color ^ 1) as usize])
+        }
     }
 
     pub fn get_rook_moves(
@@ -422,7 +428,13 @@ impl MoveGen {
         attack_only: bool,
         kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
-        Some(self.gen_rook_attacks(idx, occupied, color, attack_only, kings) & !friendly)
+        let attacks = self.gen_rook_attacks(idx, occupied, color, attack_only, kings);
+
+        if attack_only {
+            Some(BitBoard(attacks) & !friendly)
+        } else {
+            Some(BitBoard(attacks) & !friendly & !kings[(color ^ 1) as usize])
+        }
     }
 
     pub fn get_queen_moves(
@@ -434,7 +446,13 @@ impl MoveGen {
         attack_only: bool,
         kings: &[BitBoard; 2],
     ) -> Option<BitBoard> {
-        Some(self.gen_queen_attacks(idx, occupied, color, attack_only, kings) & !friendly)
+        let attacks = self.gen_queen_attacks(idx, occupied, color, attack_only, kings);
+
+        if attack_only {
+            Some(BitBoard(attacks) & !friendly)
+        } else {
+            Some(BitBoard(attacks) & !friendly & !kings[(color ^ 1) as usize])
+        }
     }
 }
 

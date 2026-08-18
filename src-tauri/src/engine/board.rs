@@ -619,6 +619,16 @@ impl Board {
         let player = color as usize;
         let enemy = (color ^ 1) as usize;
         let king_board = self.pieces[player][PieceKind::King as usize];
+
+        debug_assert_eq!(
+            king_board.count(),
+            1,
+            "INVALID KING STATE: color={}, king_board={}, mover/player_turn={}",
+            color,
+            king_board,
+            self.player_turn,
+        );
+
         let king_idx = king_board.lsb() as usize;
         let queen_board = self.pieces[enemy][PieceKind::Queen as usize];
 

@@ -223,13 +223,12 @@ fn build_response(mv: Move, board: &mut Board) -> Response {
 
     square_changes.extend(move_changes);
 
+    board.player_turn ^= 1;
     let game_state = board.get_game_state();
     let mut winner: Option<Color> = None;
     if game_state == GameState::Checkmate {
         winner = Some(Color::from(board.player_turn ^ 1));
     }
-
-    board.player_turn ^= 1;
 
     Response {
         move_type: MoveType::Normal,

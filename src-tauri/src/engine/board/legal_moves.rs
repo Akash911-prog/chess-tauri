@@ -18,6 +18,9 @@ impl super::Board {
         let enemy = self.color_occupency[color ^ 1];
         let occupied = self.total_occupency;
 
+        // Calculate check information ONCE for this position.
+        let check_info = self.check_for_check();
+
         for piece_idx in 0..6 {
             let piece_type = PieceKind::from_idx(piece_idx);
             let mut piece_board = self.pieces[color][piece_idx];
@@ -25,6 +28,8 @@ impl super::Board {
             while let Some(from) = piece_board.pop_lsb() {
                 let from = from as u8;
 
+                // King moves have their own legality validation because
+                // king safety depends on the opponent's attack mask.
                 if piece_type == PieceKind::King {
                     self.collect_king_moves(from, &mut moves);
                     continue;
@@ -46,9 +51,14 @@ impl super::Board {
 
                 while let Some(to) = destinations.pop_lsb() {
                     let to = to as u8;
-                    if !self.validate_move(piece_type, from, to, None) {
+
+                    // `destinations` already tells us this is a
+                    // pseudo-legal move. validate_move() now only
+                    // checks pins, check evasions, and en passant.
+                    if !self.validate_generated_move(piece_type, from, to, &check_info) {
                         continue;
                     }
+
                     self.push_pseudo_legal_move(piece_idx, from, to, &mut moves);
                 }
             }
