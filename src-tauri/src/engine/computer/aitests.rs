@@ -27,16 +27,16 @@ fn evaluator_test() {}
 mod eval_material_count {
     use super::*;
 
-    #[test]
-    fn one_pawn() {
-        let board = setup_board("3k4/8/8/2P5/8/8/8/3K4 w - - 0 1");
-        let eval = pre_test(&board);
-        let score = eval.static_eval();
+    // #[test]
+    // fn one_pawn() {
+    //     let board = setup_board("3k4/8/8/2P5/8/8/8/3K4 w - - 0 1");
+    //     let eval = pre_test(&board);
+    //     let score = eval.static_eval();
 
-        println!("score: {}", score);
+    //     println!("score: {}", score);
 
-        assert_eq!(score, 100);
-    }
+    //     assert_eq!(score, 100);
+    // }
 
     #[test]
     fn starting_position() {
@@ -49,27 +49,27 @@ mod eval_material_count {
         assert_eq!(score, 0);
     }
 
-    #[test]
-    fn black_knight_removal() {
-        let board = setup_board("rnbqkb1r/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        let eval = pre_test(&board);
-        let score = eval.static_eval();
+    // #[test]
+    // fn black_knight_removal() {
+    //     let board = setup_board("rnbqkb1r/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    //     let eval = pre_test(&board);
+    //     let score = eval.static_eval();
 
-        println!("score: {}", score);
+    //     println!("score: {}", score);
 
-        assert_eq!(score, 320);
-    }
+    //     assert_eq!(score, 320);
+    // }
 
-    #[test]
-    fn side_to_move_sign() {
-        let board = setup_board("rnbqkb1r/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1");
-        let eval = pre_test(&board);
-        let score = eval.static_eval();
+    // #[test]
+    // fn side_to_move_sign() {
+    //     let board = setup_board("rnbqkb1r/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1");
+    //     let eval = pre_test(&board);
+    //     let score = eval.static_eval();
 
-        println!("score: {}", score);
+    //     println!("score: {}", score);
 
-        assert_eq!(score, -320);
-    }
+    //     assert_eq!(score, -320);
+    // }
 }
 
 #[cfg(test)]

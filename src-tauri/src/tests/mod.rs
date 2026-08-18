@@ -1,6 +1,9 @@
 #[cfg(test)]
 pub mod perft;
 
+#[cfg(test)]
+pub mod refactor;
+
 use super::*;
 use crate::engine::{
     board::Board,

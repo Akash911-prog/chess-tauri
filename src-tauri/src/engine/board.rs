@@ -38,6 +38,7 @@ pub struct Board {
     pub fullmove_clock: u16,
 
     pub attack_mask: [BitBoard; 2],
+    pub attack_by_type: [[BitBoard; 6]; 2],
     pub pinned_pieces: [Option<BitBoard>; 64],
 
     pub zobrist_hash: u64, // TODO: Add the actualy hash logic and table logic later. Version 2.0
@@ -76,6 +77,7 @@ impl Board {
             zobrist_hash: 0,
 
             attack_mask: [BitBoard::EMPTY, BitBoard::EMPTY],
+            attack_by_type: [[BitBoard::EMPTY; 6]; 2],
             pinned_pieces: [None; 64],
 
             move_gen: MoveGen::new(),
@@ -151,9 +153,9 @@ impl Board {
     /// - Total board occupancy.
     /// - Enemy attack mask.
     pub fn init(&mut self) {
-        self.update_state();
+        self.init_state();
 
-        self.update_attack_mask();
+        self.init_attack_mask();
         self.pinned_pieces = self.compute_pinned_pieces();
 
         self.kings = [
@@ -162,7 +164,126 @@ impl Board {
         ]
     }
 
-    pub fn update_state(&mut self) {
+    pub fn update(&mut self, mv: Move, mover_color: usize) {
+        self.update_state_incremental(mv, mover_color);
+        self.update_attack_mask();
+    }
+
+    /// Computes the combined attack bitboard for every piece of one type/color,
+    /// folded into a single mask. Safe to call in isolation because it always
+    /// rebuilds the WHOLE type-slot from scratch — no partial-subtraction
+    /// ambiguity from overlapping attackers of the same type.
+    fn compute_attack_for_type(&self, color: u8, piece_idx: usize) -> BitBoard {
+        let piece_type = PieceKind::from_idx(piece_idx);
+        let friendly = self.color_occupency[color as usize];
+        let enemy = self.color_occupency[(color ^ 1) as usize];
+        let occupied = self.total_occupency;
+
+        let mut bb = self.pieces[color as usize][piece_idx];
+        let mut acc = BitBoard::EMPTY;
+
+        while bb.0 != 0 {
+            let sq = match bb.pop_lsb() {
+                Some(sq) => sq,
+                None => break,
+            };
+            if let Some(attacks) = self.move_gen.get_legal_moves_by_piece(
+                piece_type,
+                occupied,
+                sq.into(),
+                color,
+                enemy,
+                friendly,
+                true, // attack_only
+                self.en_passant_square,
+                &self.kings,
+            ) {
+                acc |= attacks;
+            }
+        }
+        acc
+    }
+
+    /// Full recompute, replaces the old single-mask update_attack_mask body.
+    /// Fills every type-slot for both colors, then derives attack_mask by
+    /// folding each color's 6 slots — same OUTPUT as before, fixed fold-seed
+    /// bug included (each color starts from EMPTY, not the previous color's mask).
+    pub fn update_attack_mask(&mut self) {
+        for color in 0..2u8 {
+            for piece_idx in 0..6 {
+                self.attack_by_type[color as usize][piece_idx] =
+                    self.compute_attack_for_type(color, piece_idx);
+            }
+        }
+        self.attack_mask[0] = self.attack_by_type[0]
+            .iter()
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
+        self.attack_mask[1] = self.attack_by_type[1]
+            .iter()
+            .fold(BitBoard::EMPTY, |a, b| a | *b);
+    }
+
+    /// Incrementally updates color_occupency and total_occupency for a move,
+    /// instead of refolding all 6 piece bitboards from scratch.
+    ///
+    /// `mover_color` must be the color making the move, BEFORE any turn flip
+    /// (same convention as do_ep_capture's pre-flip check).
+    pub fn update_state_incremental(&mut self, mv: Move, mover_color: usize) {
+        let opponent = mover_color ^ 1;
+
+        match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::EpCapture => {
+                // mover vacates `from`, occupies `to` — same as a normal move
+                self.color_occupency[mover_color] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+
+                // captured pawn is NOT on `to` — it's behind it, same logic as do_ep_capture
+                let captured_idx = if mover_color == 0 {
+                    mv.to() - 8
+                } else {
+                    mv.to() + 8
+                };
+                self.color_occupency[opponent] ^= 1u64 << captured_idx;
+            }
+
+            MoveFlag::KingCastle => {
+                self.color_occupency[mover_color] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+                // rook squares match do_castle's constants exactly
+                if mover_color == 0 {
+                    self.color_occupency[mover_color] ^= (1u64 << 7) | (1u64 << 5);
+                // h1 -> f1
+                } else {
+                    self.color_occupency[mover_color] ^= (1u64 << 63) | (1u64 << 61);
+                    // h8 -> f8
+                }
+            }
+
+            MoveFlag::QueenCastle => {
+                self.color_occupency[mover_color] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+                if mover_color == 0 {
+                    self.color_occupency[mover_color] ^= (1u64 << 0) | (1u64 << 3);
+                // a1 -> d1
+                } else {
+                    self.color_occupency[mover_color] ^= (1u64 << 56) | (1u64 << 59);
+                    // a8 -> d8
+                }
+            }
+
+            // Quiet, DoublePush, Capture, all four Promo* flags — occupancy-wise
+            // identical: mover leaves `from`, occupies `to`; a captured piece
+            // (if any) was standing ON `to` and gets cleared from opponent's side.
+            _ => {
+                self.color_occupency[mover_color] ^= (1u64 << mv.from()) | (1u64 << mv.to());
+
+                if mv.captured_piece() <= 5 {
+                    self.color_occupency[opponent] ^= 1u64 << mv.to();
+                }
+            }
+        }
+
+        self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
+    }
+
+    pub fn init_state(&mut self) {
         self.color_occupency[0] = self.pieces[0].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
         self.color_occupency[1] = self.pieces[1].iter().fold(BitBoard::EMPTY, |a, b| a | *b);
         self.total_occupency = self.color_occupency[0] | self.color_occupency[1];
@@ -366,7 +487,7 @@ impl Board {
     ///
     /// The resulting mask is stored in `enemy_attack_mask` and is used,
     /// among other things, when validating king moves and castling.
-    fn update_attack_mask(&mut self) {
+    fn init_attack_mask(&mut self) {
         let white_possible_moves = self.get_all_legal_moves(0, true);
         let black_possible_moves = self.get_all_legal_moves(1, true);
         let mask: BitBoard = white_possible_moves
@@ -375,7 +496,9 @@ impl Board {
 
         self.attack_mask[0] = mask;
 
-        let mask: BitBoard = black_possible_moves.iter().fold(mask, |acc, &x| acc | x);
+        let mask: BitBoard = black_possible_moves
+            .iter()
+            .fold(BitBoard::EMPTY, |acc, &x| acc | x);
 
         self.attack_mask[1] = mask;
     }

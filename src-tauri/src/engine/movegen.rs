@@ -490,6 +490,24 @@ impl Move {
         Move { move_mask, piece }
     }
 
+    pub fn from_notation(mv: &str) -> Move {
+        let bytes = mv.as_bytes();
+
+        let from_file = bytes[0] - b'a';
+        let from_rank = bytes[1] - b'1';
+        let to_file = bytes[2] - b'a';
+        let to_rank = bytes[3] - b'1';
+
+        let from = from_rank * 8 + from_file;
+        let to = to_rank * 8 + to_file;
+
+        let mask = (from as u16) | ((to as u16) << 6);
+        Move {
+            move_mask: mask,
+            piece: 0,
+        }
+    }
+
     pub fn from(&self) -> u8 {
         (self.move_mask & 0x3F) as u8
     }
