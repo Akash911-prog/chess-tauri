@@ -99,18 +99,3 @@ fn negamax_is_deterministic() {
     let s2 = search.negamax(3, 0, i32::MIN + 1, i32::MAX);
     assert_eq!(s1, s2);
 }
-
-#[test]
-fn timed_negamax() {
-    let mut board =
-        setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    let mut search = Search::new(&mut board);
-    let start = Instant::now();
-
-    let s1 = search.negamax(5, 0, i32::MIN + 1, i32::MAX);
-
-    println!("Negamax score: {}", s1);
-    let elapsed = start.elapsed();
-    println!("Negamax took {:.3} ms", elapsed.as_secs_f64() * 1000.0);
-    println!("Nood visited: {} ", search.nodes_visited);
-}

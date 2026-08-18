@@ -1,5 +1,9 @@
 use crate::engine::{
-    board::Board, computer::evaluator::Evaluator, constants::MATE_SCORE, movegen::Move,
+    board::Board,
+    computer::evaluator::Evaluator,
+    constants::MATE_SCORE,
+    movegen::{Move, MoveFlag},
+    types::PieceKind,
 };
 
 pub struct Search<'a> {
@@ -19,7 +23,9 @@ impl<'a> Search<'a> {
     pub fn negamax(&mut self, depth: u8, ply: i32, mut alpha: i32, beta: i32) -> i32 {
         self.nodes_visited += 1;
 
-        let legal_moves = self.board.generate_legal_moves();
+        let mut legal_moves = self.board.generate_legal_moves();
+
+        legal_moves.sort_unstable_by_key(|mv| std::cmp::Reverse(self.move_order_score(*mv)));
 
         if legal_moves.is_empty() {
             if self.board.check_for_check().is_check {
@@ -53,7 +59,9 @@ impl<'a> Search<'a> {
     }
 
     pub fn find_best_move(&mut self, depth: u8) -> (Move, i32) {
-        let possible_moves = self.board.generate_legal_moves();
+        let mut possible_moves = self.board.generate_legal_moves();
+
+        possible_moves.sort_unstable_by_key(|mv| std::cmp::Reverse(self.move_order_score(*mv)));
 
         let mut best_move = possible_moves[0];
         let mut alpha = i32::MIN + 1;
@@ -83,12 +91,23 @@ impl<'a> Search<'a> {
         MATE_SCORE - ply
     }
 
-    pub fn negate(&self, score: i32, ply: i32) -> i32 {
-        let mate_score = self.mate_score(ply);
-        if score == mate_score {
-            return -(self.mate_score(ply + 1));
-        };
+    fn move_order_score(&self, mv: Move) -> i32 {
+        let captured = mv.captured_piece();
 
-        -score
+        if captured <= 5 {
+            let victim = PieceKind::from_idx(captured as usize).value();
+            let attacker = PieceKind::from_idx(mv.piece() as usize).value();
+
+            return 10_000 + victim * 10 - attacker;
+        }
+
+        match MoveFlag::from_bits(mv.flags()) {
+            MoveFlag::PromoQueen => 20_000,
+            MoveFlag::PromoRook => 19_000,
+            MoveFlag::PromoBishop => 18_000,
+            MoveFlag::PromoKnight => 17_000,
+            MoveFlag::EpCapture => 10_000 + 900,
+            _ => 0,
+        }
     }
 }

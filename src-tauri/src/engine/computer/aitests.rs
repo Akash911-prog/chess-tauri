@@ -4,6 +4,9 @@ mod quiescence_search;
 #[cfg(test)]
 mod negamax;
 
+#[cfg(test)]
+mod benchmark;
+
 use crate::engine::computer::evaluator::Evaluator;
 
 use super::super::*;
