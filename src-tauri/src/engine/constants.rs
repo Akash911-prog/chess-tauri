@@ -191,3 +191,5 @@ pub const PAWN_BLOCKED_PENALTY: [i32; 8] = [
     0,   // Rank 7
     0,   // Rank 8
 ];
+
+pub const MATE_SCORE: i32 = 100000;

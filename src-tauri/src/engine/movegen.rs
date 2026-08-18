@@ -7,6 +7,7 @@ use crate::engine::{
     types::PieceKind::{self, Bishop, King, Knight, Pawn, Queen, Rook},
 };
 
+#[derive(Debug, Clone)]
 pub struct MoveGen {
     knight_moves: [u64; 64],
     king_moves: [u64; 64],

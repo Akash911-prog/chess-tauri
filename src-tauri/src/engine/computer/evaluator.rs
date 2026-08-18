@@ -70,7 +70,7 @@ impl<'a> Evaluator<'a> {
             self.board.total_occupency,
             idx as usize,
             self.board.player_turn,
-            self.board.enemy_attack_mask,
+            self.board.color_occupency[(self.board.player_turn ^ 1) as usize],
             self.board.color_occupency[self.board.player_turn as usize],
             false,
             self.board.en_passant_square,

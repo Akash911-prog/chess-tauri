@@ -22,6 +22,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone)]
 pub struct Board {
     // position info
     pub pieces: [[BitBoard; 6]; 2],

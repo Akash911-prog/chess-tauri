@@ -138,21 +138,20 @@ fn perft_position_4() {
     assert_eq!(board.perft(3), 9_467);
 }
 
-// #[test]
-// fn debug_divide() {
-//     let mut board =
-//         setup_board("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-//     board.perft_divide(4);
+#[test]
+fn debug_divide() {
+    let mut board = setup_board("1k3q1r/6p1/2pN4/Q3P2r/P3P3/5bP1/1P3PB1/2R3K1 b - - 0 1");
+    board.perft_divide(4);
 
-//     board.debug_after_move(8, 24, 3);
-//     board.debug_after_move(
-//         board.notation_to_index("e8"),
-//         board.notation_to_index("g8"),
-//         2,
-//     );
-//     board.debug_after_move(
-//         board.notation_to_index("e1"),
-//         board.notation_to_index("g1"),
-//         1,
-//     );
-// }
+    board.debug_after_move(8, 24, 3);
+    board.debug_after_move(
+        board.notation_to_index("e8"),
+        board.notation_to_index("g8"),
+        2,
+    );
+    board.debug_after_move(
+        board.notation_to_index("e1"),
+        board.notation_to_index("g1"),
+        1,
+    );
+}

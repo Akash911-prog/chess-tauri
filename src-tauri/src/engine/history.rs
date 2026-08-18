@@ -1,5 +1,6 @@
 use crate::engine::movegen::Move;
 
+#[derive(Debug, Clone)]
 pub struct HistoryManager {
     undo_struct: Vec<Undo>,
 }
@@ -25,8 +26,15 @@ impl HistoryManager {
     pub fn push(&mut self, info: Undo) {
         self.undo_struct.push(info);
     }
+
+    pub fn clone(&self) -> HistoryManager {
+        HistoryManager {
+            undo_struct: self.undo_struct.clone(),
+        }
+    }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Undo {
     pub mv: Move,              // what was played, so unmake knows how to reverse it
     pub castling_rights: u8,   // rights BEFORE this move (once you've fixed the naming above)

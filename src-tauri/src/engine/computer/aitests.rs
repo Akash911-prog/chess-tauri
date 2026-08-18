@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod quiescence_search;
 
+#[cfg(test)]
+mod negamax;
+
 use crate::engine::computer::evaluator::Evaluator;
 
 use super::super::*;
