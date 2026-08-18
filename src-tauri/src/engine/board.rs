@@ -161,7 +161,64 @@ impl Board {
         self.kings = [
             self.pieces[0][PieceKind::King as usize],
             self.pieces[1][PieceKind::King as usize],
-        ]
+        ];
+
+        self.zobrist_hash = self.compute_zobrist_hash();
+    }
+
+    #[inline(always)]
+    fn zobrist_mix(mut x: u64) -> u64 {
+        x = x.wrapping_add(0x9E3779B97F4A7C15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
+        x ^ (x >> 31)
+    }
+
+    #[inline]
+    fn zobrist_piece(color: usize, piece: usize, square: usize) -> u64 {
+        Self::zobrist_mix(1 + square as u64 + 64 * piece as u64 + 384 * color as u64)
+    }
+
+    #[inline]
+    fn zobrist_castling(rights: u8) -> u64 {
+        Self::zobrist_mix(10_000 + rights as u64)
+    }
+
+    #[inline]
+    fn zobrist_ep(square: u8) -> u64 {
+        if square >= 64 {
+            0
+        } else {
+            Self::zobrist_mix(11_000 + square as u64)
+        }
+    }
+
+    #[inline]
+    fn zobrist_side() -> u64 {
+        Self::zobrist_mix(12_000)
+    }
+
+    pub fn compute_zobrist_hash(&self) -> u64 {
+        let mut hash = 0;
+
+        for color in 0..2 {
+            for piece in 0..6 {
+                let mut pieces = self.pieces[color][piece];
+
+                while let Some(sq) = pieces.pop_lsb() {
+                    hash ^= Self::zobrist_piece(color, piece, sq as usize);
+                }
+            }
+        }
+
+        hash ^= Self::zobrist_castling(self.castling_rights);
+        hash ^= Self::zobrist_ep(self.en_passant_square);
+
+        if self.player_turn == 1 {
+            hash ^= Self::zobrist_side();
+        }
+
+        hash
     }
 
     pub fn update(&mut self, mv: Move, mover_color: usize) {
@@ -172,7 +229,9 @@ impl Board {
         self.kings = [
             self.pieces[0][PieceKind::King as usize],
             self.pieces[1][PieceKind::King as usize],
-        ]
+        ];
+
+        self.zobrist_hash = self.compute_zobrist_hash();
     }
 
     /// Computes the combined attack bitboard for every piece of one type/color,

@@ -496,7 +496,7 @@ impl MoveFlag {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move {
     // board State
     move_mask: u16, // 16-bit move encoding: [6-bit from][6-bit to][4-bit special flags]
