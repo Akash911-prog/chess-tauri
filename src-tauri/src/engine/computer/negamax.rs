@@ -1,4 +1,9 @@
-use std::cmp::Reverse;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use std::{
+    cmp::Reverse,
+    time::{Duration, Instant},
+};
 
 use crate::engine::{
     board::Board,
@@ -18,7 +23,8 @@ pub struct Search<'a> {
     pub nodes_visited: u64,
     tt: TranspositionTable,
     move_buffers: Vec<Vec<Move>>,
-    // later: tt: TranspositionTable, killers: [[Move; 2]; MAX_DEPTH], stop_time: Instant, ...
+    aborted: bool,
+    pub depth: u8, // later: tt: TranspositionTable, killers: [[Move; 2]; MAX_DEPTH], stop_time: Instant, ...
 }
 
 impl<'a> Search<'a> {
@@ -34,11 +40,26 @@ impl<'a> Search<'a> {
             nodes_visited: 0,
             tt: TranspositionTable::new(64),
             move_buffers,
+            aborted: false,
+            depth: 1,
         }
     }
 
-    pub fn negamax(&mut self, depth: u8, ply: i32, mut alpha: i32, mut beta: i32) -> i32 {
+    pub fn negamax(
+        &mut self,
+        depth: u8,
+        ply: i32,
+        mut alpha: i32,
+        mut beta: i32,
+        timer: &Instant,
+        time_limit: &Duration,
+    ) -> i32 {
         self.nodes_visited += 1;
+
+        if self.nodes_visited % 3000 == 0 && timer.elapsed() >= *time_limit {
+            self.aborted = true;
+            return 0;
+        }
 
         let original_alpha = alpha;
         let hash = self.board.zobrist_hash;
@@ -88,7 +109,7 @@ impl<'a> Search<'a> {
 
         for mv in &legal_moves {
             self.board.make_move(*mv);
-            let score = -self.negamax(depth - 1, ply + 1, -beta, -alpha);
+            let score = -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit);
             self.board.undo_move();
 
             if score > best_score {
@@ -121,41 +142,84 @@ impl<'a> Search<'a> {
         best_score
     }
 
-    pub fn find_best_move(&mut self, depth: u8) -> (Move, i32) {
-        let tt_move = self
-            .tt
-            .probe(self.board.zobrist_hash)
-            .and_then(|entry| entry.best_move);
+    pub fn find_best_move(&mut self, alloted_time: u64) -> (Move, i32) {
+        let time_limit = Duration::from_millis(alloted_time);
+        let start = Instant::now();
 
         let mut possible_moves = Vec::with_capacity(64);
         self.board.generate_legal_moves(&mut possible_moves);
 
-        possible_moves.sort_unstable_by_key(|mv| {
-            if Some(*mv) == tt_move {
-                Reverse(i32::MAX)
-            } else {
-                Reverse(self.move_order_score(*mv))
-            }
-        });
-
         let mut best_move = possible_moves[0];
-        let mut alpha = i32::MIN + 1;
-        let beta = i32::MAX;
+        let mut best_score = 0;
+        let mut depth = 1;
 
-        for mv in possible_moves {
-            self.board.make_move(mv);
-
-            let score = -self.negamax(depth - 1, 1, -beta, -alpha);
-
-            self.board.undo_move();
-
-            if score > alpha {
-                alpha = score;
-                best_move = mv;
+        loop {
+            // stop before starting a new depth if we're out of budget
+            if start.elapsed() >= time_limit {
+                break;
             }
+
+            let tt_move = self
+                .tt
+                .probe(self.board.zobrist_hash)
+                .and_then(|entry| entry.best_move);
+
+            possible_moves.sort_unstable_by_key(|mv| {
+                if Some(*mv) == tt_move {
+                    Reverse(i32::MAX)
+                } else {
+                    Reverse(self.move_order_score(*mv))
+                }
+            });
+
+            let mut alpha = i32::MIN + 1;
+            let beta = i32::MAX;
+            let mut scored_moves: Vec<(Move, i32)> = Vec::with_capacity(possible_moves.len());
+
+            for mv in &possible_moves {
+                self.board.make_move(*mv);
+                let score = -self.negamax(depth - 1, 1, -beta, -alpha, &start, &time_limit);
+                self.board.undo_move();
+                scored_moves.push((*mv, score));
+                if score > alpha {
+                    alpha = score;
+                }
+
+                // bail mid-depth if we've blown the budget; this depth's
+                // results are partial and unreliable, so discard them
+                if start.elapsed() >= time_limit {
+                    self.aborted = true;
+                    break;
+                }
+            }
+
+            if self.aborted {
+                break;
+            }
+
+            let depth_best_score = scored_moves.iter().map(|(_, s)| *s).max().unwrap();
+            const EPSILON: i32 = 3; // centipawns
+            let candidates: Vec<Move> = scored_moves
+                .iter()
+                .filter(|(_, s)| depth_best_score - s <= EPSILON)
+                .map(|(mv, _)| *mv)
+                .collect();
+
+            best_move = *candidates.choose(&mut thread_rng()).unwrap();
+            best_score = depth_best_score;
+
+            // reorder for next iteration so the best move from this depth
+            // gets searched first (helps alpha-beta cutoffs next pass)
+            if let Some(pos) = possible_moves.iter().position(|mv| *mv == best_move) {
+                possible_moves.swap(0, pos);
+            }
+
+            depth += 1;
         }
 
-        (best_move, alpha)
+        self.depth = depth;
+
+        (best_move, best_score)
     }
 
     pub fn quiescence(&mut self, alpha: i32, beta: i32) -> i32 {

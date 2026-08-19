@@ -248,7 +248,9 @@ pub fn get_move(app: AppHandle) -> Result<Legality, CommandError> {
     let result: (Move, i32);
     {
         let mut evaluator = Search::new(&mut (*board));
-        result = evaluator.find_best_move(4);
+        result = evaluator.find_best_move(1000);
+        println!("nodes visited: {}", evaluator.nodes_visited);
+        println!("depth: {}", evaluator.depth);
     }
     board.make_move(result.0);
 

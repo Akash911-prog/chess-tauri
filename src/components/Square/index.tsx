@@ -44,7 +44,7 @@ const Square = ({
     const rank = Math.floor(idx / 8);
     const isLight = (file + rank) % 2 === 0;
 
-    const onDragEnd = async (event, info) => {
+    const onDragEnd = async (_: DragEvent, info: any) => {
         const boardRect = boardRef.current?.getBoundingClientRect();
         if (!boardRect) return;
 

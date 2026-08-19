@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::engine::{computer::negamax::Search, constants::MATE_SCORE};
 
@@ -17,7 +17,14 @@ fn depth_zero_returns_static_eval() {
     let mut board = setup_board("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
     let eval_score = Evaluator::new(&board).static_eval();
     let mut search = Search::new(&mut board);
-    let search_score = search.negamax(0, 0, i32::MIN + 1, i32::MAX);
+    let search_score = search.negamax(
+        0,
+        0,
+        i32::MIN + 1,
+        i32::MAX,
+        &Instant::now(),
+        &Duration::from_millis(400),
+    );
     assert_eq!(search_score, eval_score);
 }
 
@@ -27,7 +34,14 @@ fn no_legal_moves_in_check_returns_mate_score() {
     // e.g. back-rank mate FEN
     let mut board = setup_board("6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1"); // adjust to an actual mate-in-0 for side to move
     let mut search = Search::new(&mut board);
-    let score = search.negamax(1, 0, i32::MIN + 1, i32::MAX);
+    let score = search.negamax(
+        1,
+        0,
+        i32::MIN + 1,
+        i32::MAX,
+        &Instant::now(),
+        &Duration::from_millis(400),
+    );
     assert!(is_mate_score(score)); // however you define/detect this
 }
 
@@ -36,7 +50,14 @@ fn no_legal_moves_in_check_returns_mate_score() {
 fn no_legal_moves_not_in_check_returns_zero() {
     let mut board = setup_board("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
     let mut search = Search::new(&mut board);
-    let score = search.negamax(1, 0, i32::MIN + 1, i32::MAX);
+    let score = search.negamax(
+        1,
+        0,
+        i32::MIN + 1,
+        i32::MAX,
+        &Instant::now(),
+        &Duration::from_millis(400),
+    );
     assert_eq!(score, 0);
 }
 
@@ -95,7 +116,21 @@ fn finds_mate_in_two() {
 fn negamax_is_deterministic() {
     let mut board = setup_board("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
     let mut search = Search::new(&mut board);
-    let s1 = search.negamax(3, 0, i32::MIN + 1, i32::MAX);
-    let s2 = search.negamax(3, 0, i32::MIN + 1, i32::MAX);
+    let s1 = search.negamax(
+        100,
+        0,
+        i32::MIN + 1,
+        i32::MAX,
+        &Instant::now(),
+        &Duration::from_millis(1000),
+    );
+    let s2 = search.negamax(
+        100,
+        0,
+        i32::MIN + 1,
+        i32::MAX,
+        &Instant::now(),
+        &Duration::from_millis(1000),
+    );
     assert_eq!(s1, s2);
 }

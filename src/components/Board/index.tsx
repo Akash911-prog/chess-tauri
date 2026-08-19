@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBoard } from "../../hooks/BoardSrc";
 import Square from "../Square";
 import GameOverModal from "../GameOverScreen";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { PendingPromotion } from "../../dto";
 import { Color } from "../../types";
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::engine::computer::aitests::setup_board;
 use crate::engine::computer::negamax::Search;
@@ -29,9 +29,11 @@ fn timed_negamax() {
         None
     };
 
+    let time_limit = Duration::from_millis(400000);
+
     // 2. Run current benchmark
     let start = Instant::now();
-    let s1 = search.negamax(10, 0, i32::MIN + 1, i32::MAX);
+    let s1 = search.negamax(7, 0, i32::MIN + 1, i32::MAX, &start, &time_limit);
     let elapsed = start.elapsed();
 
     // 3. Calculate current metrics
