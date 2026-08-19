@@ -1,6 +1,7 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::{
+    char::MAX,
     cmp::Reverse,
     time::{Duration, Instant},
 };
@@ -11,12 +12,32 @@ use crate::engine::{
         evaluator::Evaluator,
         tt::{Bound, TTEntry, TranspositionTable},
     },
-    constants::{MATE_SCORE, MATE_THRESHOLD},
+    constants::{MATE_SCORE, MATE_THRESHOLD, MAX_DEPTH, MAX_MOVES},
     movegen::{Move, MoveFlag},
     types::PieceKind,
 };
 
 const MAX_PLY: usize = 128;
+
+use std::sync::OnceLock;
+
+static LMR_TABLE: OnceLock<Vec<Vec<i32>>> = OnceLock::new();
+
+fn init_lmr() -> Vec<Vec<i32>> {
+    let mut table = vec![vec![0i32; MAX_MOVES]; MAX_DEPTH];
+
+    for depth in 1..MAX_DEPTH {
+        for move_count in 1..MAX_MOVES {
+            if depth < 3 || move_count < 3 {
+                continue;
+            }
+
+            let r = (depth as f64).ln() * (move_count as f64).ln() / 1.75;
+            table[depth][move_count] = r as i32;
+        }
+    }
+    table
+}
 
 pub struct Search<'a> {
     board: &'a mut Board,
@@ -93,9 +114,25 @@ impl<'a> Search<'a> {
 
         if (!check_info.is_check) & (depth >= 3) & (self.board.has_non_pawn_mat()) & allow_null_move
         {
-            self.board.player_turn ^= 1;
-            let score = -self.negamax(1, 1, -beta, -beta + 1, timer, time_limit, false);
-            self.board.player_turn ^= 1;
+            const NULL_MOVE_REDUCTION: u8 = 2;
+            let old_en_passant = self.board.make_null_move();
+            let score = -self.negamax(
+                depth - 1 - NULL_MOVE_REDUCTION,
+                ply + 1,
+                -beta,
+                -beta + 1,
+                timer,
+                time_limit,
+                false,
+            );
+            self.board.undo_null_move(old_en_passant);
+
+            // A subtree that hit the time limit returns a placeholder 0,
+            // not a real evaluation - never trust it for a cutoff.
+            if self.aborted {
+                return 0;
+            }
+
             if score >= beta {
                 return beta;
             }
@@ -106,10 +143,13 @@ impl<'a> Search<'a> {
         self.board.generate_legal_moves(&mut legal_moves);
 
         if legal_moves.is_empty() {
-            if check_info.is_check {
-                return -(self.mate_score(ply));
-            }
-            return 0;
+            let result = if check_info.is_check {
+                -(self.mate_score(ply))
+            } else {
+                0
+            };
+            self.move_buffers[ply as usize] = legal_moves;
+            return result;
         }
 
         legal_moves.sort_unstable_by_key(|mv| {
@@ -121,7 +161,9 @@ impl<'a> Search<'a> {
         });
 
         if depth == 0 {
-            return self.quiescence(alpha, beta);
+            let score = self.quiescence(alpha, beta);
+            self.move_buffers[ply as usize] = legal_moves;
+            return score;
         }
 
         let mut best_score = i32::MIN + 1;
@@ -129,14 +171,32 @@ impl<'a> Search<'a> {
         let mut score;
         let mut i = 0;
 
-        for mv in &legal_moves {
-            self.board.make_move(*mv);
+        // Indexed rather than `for mv in &legal_moves` so the vector isn't
+        // borrowed for the whole loop - we need to move it back into the
+        // buffer pool on the early return below.
+        while i < legal_moves.len() {
+            let mv = legal_moves[i];
+            self.board.make_move(mv);
+
+            let mut reduction = 0;
+            if (i >= 3) & (depth >= 3) & (mv.flags() == MoveFlag::Quiet.bits()) {
+                reduction = self.get_lmr_reduction(depth.into(), i as i32);
+                reduction = reduction.min((depth - 1) as i32);
+            }
 
             if i == 0 {
-                score = -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit, true);
+                score = -self.negamax(
+                    depth - 1 - reduction as u8,
+                    ply + 1,
+                    -beta,
+                    -alpha,
+                    timer,
+                    time_limit,
+                    true,
+                );
             } else {
                 score = -self.negamax(
-                    depth - 1,
+                    depth - 1 - reduction as u8,
                     ply + 1,
                     -alpha - 1,
                     -alpha,
@@ -144,6 +204,11 @@ impl<'a> Search<'a> {
                     time_limit,
                     true,
                 );
+
+                if (reduction > 0) & (score > alpha) {
+                    score =
+                        -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit, true);
+                }
 
                 if (score > alpha) & (score < beta) {
                     score =
@@ -153,9 +218,17 @@ impl<'a> Search<'a> {
 
             self.board.undo_move();
 
+            // A subtree that hit the time limit returns a placeholder 0,
+            // not a real evaluation - discard it instead of treating it as
+            // this move's score, and don't cache it in the TT below.
+            if self.aborted {
+                self.move_buffers[ply as usize] = legal_moves;
+                return 0;
+            }
+
             if score > best_score {
                 best_score = score;
-                best_move = Some(*mv);
+                best_move = Some(mv);
             }
             alpha = alpha.max(best_score);
 
@@ -190,7 +263,28 @@ impl<'a> Search<'a> {
             best_move,
         });
 
+        self.move_buffers[ply as usize] = legal_moves;
+
         best_score
+    }
+
+    pub fn get_lmr_reduction(&self, depth: i32, move_count: i32) -> i32 {
+        let depth_c = depth.min(MAX_DEPTH as i32 - 1);
+        let move_count_c = move_count.min(MAX_MOVES as i32 - 1);
+
+        if (depth_c as usize) < MAX_DEPTH && (move_count_c as usize) < MAX_MOVES {
+            LMR_TABLE.get_or_init(init_lmr)[depth_c as usize][move_count_c as usize] as i32
+        } else {
+            // Out-of-bounds fallback: same formula, computed live
+            Self::lmr_formula(depth_c, move_count_c) as i32
+        }
+    }
+
+    #[inline]
+    fn lmr_formula(depth: i32, move_count: i32) -> i32 {
+        let depth = depth.max(1) as f64;
+        let move_count = move_count.max(1) as f64;
+        (0.75 + depth.ln() * move_count.ln() / 2.25) as i32
     }
 
     pub fn find_best_move(&mut self, alloted_time: u64) -> (Move, i32) {

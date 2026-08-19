@@ -45,7 +45,6 @@ pub struct Board {
 
     pub move_gen: MoveGen,
     pub history: HistoryManager,
-    pub lmr_table: [[i32; MAX_DEPTH]; MAX_MOVES],
 }
 
 impl Board {
@@ -83,8 +82,6 @@ impl Board {
 
             move_gen: MoveGen::new(),
             history: HistoryManager::new(),
-
-            lmr_table: Self::init_lmr(),
         }
     }
 
@@ -100,24 +97,6 @@ impl Board {
         self.halfmove_clock = 0;
         self.fullmove_clock = 0;
         self.zobrist_hash = 0;
-    }
-
-    pub fn init_lmr() -> [[i32; MAX_DEPTH]; MAX_MOVES] {
-        let mut table: [[i32; MAX_DEPTH]; MAX_MOVES] = [[0; MAX_DEPTH]; MAX_MOVES];
-        for depth in 1..MAX_DEPTH {
-            for move_count in 1..MAX_MOVES {
-                if (depth < 3) || (move_count < 3) {
-                    table[depth][move_count] = 0;
-                    continue;
-                }
-
-                // Standard log(depth) * log(move_count) scaling
-                let r = (depth as f64).ln() * (move_count as f64).ln() / 1.75;
-                table[depth][move_count] = r as i32;
-            }
-        }
-
-        table
     }
 
     /// Calculates the occupancy bitboard for a given color.
@@ -352,6 +331,42 @@ impl Board {
                 }
             }
         }
+    }
+
+    /// Makes a "null move": passes the turn without moving a piece.
+    ///
+    /// Used exclusively by null-move pruning in search. Unlike a raw
+    /// `player_turn ^= 1`, this keeps `zobrist_hash` in sync: it flips the
+    /// side-to-move component and clears the en-passant component (a
+    /// null move forfeits any en-passant right, and the side to move
+    /// changes), so the resulting position's hash cannot alias the hash
+    /// of the real position it was derived from.
+    ///
+    /// Returns the previous en passant square so the caller can restore it
+    /// with [`Board::undo_null_move`].
+    pub fn make_null_move(&mut self) -> u8 {
+        let old_en_passant = self.en_passant_square;
+
+        // Remove the old en-passant contribution. The new en passant square
+        // is "none" (64), which contributes 0 to the hash, so nothing else
+        // needs to be folded in for it.
+        self.zobrist_hash ^= Self::zobrist_ep(old_en_passant);
+        self.zobrist_hash ^= Self::zobrist_side();
+
+        self.en_passant_square = 64;
+        self.player_turn ^= 1;
+
+        old_en_passant
+    }
+
+    /// Undoes a null move made with [`Board::make_null_move`].
+    pub fn undo_null_move(&mut self, old_en_passant: u8) {
+        self.player_turn ^= 1;
+
+        self.zobrist_hash ^= Self::zobrist_side();
+        // Current contribution is "none" (0); fold the real old square back in.
+        self.zobrist_hash ^= Self::zobrist_ep(old_en_passant);
+        self.en_passant_square = old_en_passant;
     }
 
     pub fn update(&mut self, mv: Move, mover_color: usize) {
