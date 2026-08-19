@@ -1,7 +1,8 @@
-use std::sync::Mutex;
+use std::{sync::Mutex, time::Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Listener, Manager};
+use tracing::{debug, info, instrument};
 
 use crate::engine::{
     board::Board,
@@ -146,8 +147,9 @@ pub enum CommandError {
 
 // remember to call `.manage(MyState::default())`
 #[tauri::command]
+#[instrument]
 pub fn get_legal_moves(move_info: GetLegalMovesParams) -> Result<(), CommandError> {
-    println!("{:?}", move_info);
+    debug!(?move_info, "get_legal_moves received");
     Ok(())
 }
 
@@ -219,12 +221,11 @@ fn build_response(mv: Move, board: &mut Board) -> Response {
         promotion_kind,
     );
 
-    println!("color: {}", board.player_turn);
-
     square_changes.extend(move_changes);
 
     board.player_turn ^= 1;
     let game_state = board.get_game_state();
+    debug!(?game_state, "game state after move");
     let mut winner: Option<Color> = None;
     if game_state == GameState::Checkmate {
         winner = Some(Color::from(board.player_turn ^ 1));
@@ -239,36 +240,77 @@ fn build_response(mv: Move, board: &mut Board) -> Response {
 }
 
 #[tauri::command]
+#[instrument(skip(app))]
 pub fn get_move(app: AppHandle) -> Result<Legality, CommandError> {
-    println!("get_move");
+    info!("AI move requested");
+
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 
     let mut board = game.board.lock().unwrap();
     let result: (Move, i32);
+    let search_started = Instant::now();
+    let (nodes_visited, depth_reached);
     {
         let mut evaluator = Search::new(&mut (*board));
         result = evaluator.find_best_move(1000);
-        println!("nodes visited: {}", evaluator.nodes_visited);
-        println!("depth: {}", evaluator.depth);
+        nodes_visited = evaluator.nodes_visited;
+        depth_reached = evaluator.depth;
     }
+    let elapsed = search_started.elapsed();
+
+    info!(
+        from = %board.index_to_notation(result.0.from()),
+        to = %board.index_to_notation(result.0.to()),
+        score = result.1,
+        nodes_visited,
+        depth_reached,
+        elapsed_ms = elapsed.as_millis() as u64,
+        "AI move chosen"
+    );
+
     board.make_move(result.0);
 
     let response = build_response(result.0, &mut board);
+    if response.condition != GameState::InProgress {
+        let condition = &response.condition;
+        let winner = &response.winner;
+        info!(?condition, ?winner, "game ended after AI move");
+    }
     let result = Legality::Legal(response);
 
     Ok(result)
 }
 
 #[tauri::command]
+#[instrument(skip(app))]
 pub fn update(app: AppHandle, move_info: MoveInfo) -> Result<Legality, CommandError> {
-    println!("update");
+    info!(
+        from = %move_info.from,
+        to = %move_info.to,
+        promotion = ?move_info.promotion,
+        "move received from frontend"
+    );
+
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 
     let mut board = game.board.lock().unwrap();
-    let result = board.parse_react_move(move_info)?;
-    Ok(result)
+    let result = board.parse_react_move(move_info);
+
+    match &result {
+        Ok(Legality::Legal(response)) => {
+            debug!(?response.condition, "move applied");
+        }
+        Ok(Legality::Illegal) => {
+            debug!("move rejected as illegal");
+        }
+        Err(err) => {
+            debug!(?err, "move rejected with error");
+        }
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -278,7 +320,9 @@ pub fn show_window(app: AppHandle) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
+#[instrument(skip(app))]
 pub fn undo_move(app: AppHandle) -> Result<(), CommandError> {
+    info!("undo_move requested");
     let game_state = app.state::<Mutex<Game>>();
     let game = game_state.lock().unwrap();
 
@@ -288,8 +332,9 @@ pub fn undo_move(app: AppHandle) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
+#[instrument(skip(app))]
 pub fn restart(app: AppHandle) -> Result<(), CommandError> {
-    println!("restart");
+    info!("restart requested");
     let game_state = app.state::<Mutex<Game>>();
     let mut game = game_state.lock().unwrap();
     game.restart();
@@ -302,12 +347,12 @@ pub fn restart(app: AppHandle) -> Result<(), CommandError> {
 pub fn app_start_listener(app: &AppHandle) {
     let app_clone = app.clone();
 
-    app.listen("init:start", move |e| {
+    app.listen("init:start", move |_e| {
         let game_state = app_clone.state::<Mutex<Game>>();
         let mut game = game_state.lock().unwrap();
         game.init();
         let _ = app_clone.emit("init:end", ());
-        println!("init:end");
+        info!("game initialized");
     });
 }
 
