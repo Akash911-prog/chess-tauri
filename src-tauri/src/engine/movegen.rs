@@ -52,7 +52,7 @@ impl MoveGen {
         if attack_only {
             return match piece {
                 Knight => self.get_knight_moves(idx, friendly, attack_only),
-                King => self.get_king_attacks(idx, friendly),
+                King => self.get_king_attacks(idx, friendly, attack_only),
                 Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only, ep_square),
                 Rook => Some(BitBoard(self.gen_rook_attacks(
                     idx,
@@ -79,7 +79,7 @@ impl MoveGen {
         }
         match piece {
             Knight => self.get_knight_moves(idx, friendly, attack_only),
-            King => self.get_king_attacks(idx, friendly),
+            King => self.get_king_attacks(idx, friendly, attack_only),
             Pawn => self.get_pawn_attacks(idx, color, occupied, enemy, attack_only, ep_square),
             Rook => self.get_rook_moves(idx, occupied, friendly, color, attack_only, kings),
             Bishop => self.get_bishop_moves(idx, occupied, friendly, color, attack_only, kings),
@@ -101,8 +101,18 @@ impl MoveGen {
         Some(possible_moves)
     }
 
-    pub fn get_king_attacks(&self, idx: usize, friendly: BitBoard) -> Option<BitBoard> {
-        let possible_moves = self.king_moves[idx] & !friendly;
+    pub fn get_king_attacks(
+        &self,
+        idx: usize,
+        friendly: BitBoard,
+        attack_only: bool,
+    ) -> Option<BitBoard> {
+        let possible_moves = if attack_only {
+            BitBoard(self.king_moves[idx])
+        } else {
+            self.king_moves[idx] & !friendly
+        };
+
         Some(possible_moves)
     }
 

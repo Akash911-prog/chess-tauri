@@ -69,7 +69,10 @@ impl super::Board {
         let friendly = self.color_occupency[self.player_turn as usize];
 
         // adjacent squares
-        if let Some(mut candidates) = self.move_gen.get_king_attacks(from as usize, friendly) {
+        if let Some(mut candidates) = self
+            .move_gen
+            .get_king_attacks(from as usize, friendly, false)
+        {
             while let Some(to) = candidates.pop_lsb() {
                 self.try_push_king_move(from, to as u8, moves);
             }

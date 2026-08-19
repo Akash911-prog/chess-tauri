@@ -110,7 +110,7 @@ fn finds_mate_in_one() {
 fn finds_mate_in_two() {
     let mut board = setup_board("1k3q1r/6p1/2pN4/Q3P2r/P3P3/5bP1/1P3PB1/2R3K1 b - - 0 1");
     let mut search = Search::new(&mut board);
-    let (best_move, score) = search.find_best_move(5000); // depth 3: W, B, W
+    let (best_move, score) = search.find_best_move(1000); // depth 3: W, B, W
 
     assert_eq!(best_move.from(), 39); // h5
     assert_eq!(best_move.to(), 7); // h1
