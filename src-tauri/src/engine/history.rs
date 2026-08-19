@@ -32,6 +32,28 @@ impl HistoryManager {
             undo_struct: self.undo_struct.clone(),
         }
     }
+
+    pub fn is_threefold_repetition(&self, current_hash: u64) -> bool {
+        let mut count = 1; // current position
+
+        for undo in self.undo_struct.iter().rev() {
+            if undo.zobrist_hash == current_hash {
+                count += 1;
+
+                if count >= 3 {
+                    return true;
+                }
+            }
+
+            // A pawn move or capture makes all earlier positions irrelevant
+            // for repetition purposes.
+            if undo.halfmove_clock == 0 {
+                break;
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

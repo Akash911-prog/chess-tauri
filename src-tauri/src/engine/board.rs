@@ -905,13 +905,19 @@ impl Board {
         let check_info = self.check_for_check();
         let has_legal_moves = self.any_legal_move_exists();
 
-        if !has_legal_moves && check_info.is_check {
-            GameState::Checkmate
-        } else if !has_legal_moves {
-            GameState::Stalemate
-        } else {
-            GameState::InProgress
+        if !has_legal_moves {
+            if check_info.is_check {
+                return GameState::Checkmate;
+            } else {
+                return GameState::Stalemate;
+            }
         }
+
+        if self.history.is_threefold_repetition(self.zobrist_hash) {
+            return GameState::Draw;
+        }
+
+        GameState::InProgress
     }
 
     fn any_legal_move_exists(&self) -> bool {
@@ -1007,5 +1013,9 @@ impl Board {
 
     pub fn unoccupied_or_safe(&self, color: usize) -> BitBoard {
         !self.attack_mask[color] & !self.total_occupency
+    }
+
+    pub fn is_threefold_repetition(&self) -> bool {
+        self.history.is_threefold_repetition(self.zobrist_hash)
     }
 }

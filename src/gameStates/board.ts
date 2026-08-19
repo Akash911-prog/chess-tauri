@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { Color, Piece, PieceKind } from "../types";
 import { INITIAL_BOARD } from "./constants";
 import { MoveInfo, Response, toPiece } from "../dto";
+import moveSound from "../assets/moveSound.mp3";
+import winSound from "../assets/win.mp3";
 
 class Board {
     private _board: Record<string, Piece | null>;
@@ -10,6 +12,8 @@ class Board {
     public condition: string = "inprogress";
     public winColor: string = "";
     public msg: Record<string, string> = {};
+    private sound = new Audio(moveSound);
+    private winSound = new Audio(winSound);
 
     constructor() {
         this._board = { ...INITIAL_BOARD };
@@ -94,11 +98,16 @@ class Board {
             this.condition = data.condition;
             this.winColor = data.winner;
             this.msg[data.condition] = `Checkmate! ${data.winner} wins.`;
+            this.winSound.currentTime = 0;
+            this.winSound.play();
         } else if (data.condition === "stalemate") {
             this.finished = true;
             this.condition = data.condition;
             this.winColor = "";
         }
+
+        this.sound.currentTime = 0;
+        this.sound.play();
     }
 
     private async checkMove(
@@ -157,11 +166,16 @@ class Board {
                 this.condition = data.condition;
                 this.winColor = data.winner;
                 this.msg[data.condition] = `Checkmate! ${data.winner} wins.`;
+                this.winSound.currentTime = 0;
+                this.winSound.play();
             } else if (data.condition === "stalemate") {
                 this.finished = true;
                 this.condition = data.condition;
                 this.winColor = "";
             }
+
+            this.sound.currentTime = 0;
+            this.sound.play();
         } catch (error) {
             console.error(error);
         }
