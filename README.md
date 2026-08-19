@@ -124,10 +124,7 @@ The computer player uses iterative deepening with a negamax search.
 The search currently includes:
 
 - Alpha-beta pruning
-- Principal variation style searching
 - Transposition-table lookups
-- Null-move pruning
-- Late Move Reductions
 - Move ordering
 - Time-limited iterative deepening
 
@@ -140,8 +137,6 @@ Iterative Deepening
      Negamax
         │
         ├── Transposition Table
-        │
-        ├── Null Move Pruning
         │
         ├── Move Generation
         │
