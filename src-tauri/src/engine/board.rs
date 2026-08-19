@@ -11,7 +11,7 @@ use crate::{
     },
     engine::{
         bitboard::BitBoard,
-        constants::INITIAL_BOARD,
+        constants::{INITIAL_BOARD, MAX_DEPTH, MAX_MOVES},
         history::HistoryManager,
         movegen::{
             Move,
@@ -45,6 +45,7 @@ pub struct Board {
 
     pub move_gen: MoveGen,
     pub history: HistoryManager,
+    pub lmr_table: [[i32; MAX_DEPTH]; MAX_MOVES],
 }
 
 impl Board {
@@ -82,6 +83,8 @@ impl Board {
 
             move_gen: MoveGen::new(),
             history: HistoryManager::new(),
+
+            lmr_table: Self::init_lmr(),
         }
     }
 
@@ -97,6 +100,24 @@ impl Board {
         self.halfmove_clock = 0;
         self.fullmove_clock = 0;
         self.zobrist_hash = 0;
+    }
+
+    pub fn init_lmr() -> [[i32; MAX_DEPTH]; MAX_MOVES] {
+        let mut table: [[i32; MAX_DEPTH]; MAX_MOVES] = [[0; MAX_DEPTH]; MAX_MOVES];
+        for depth in 1..MAX_DEPTH {
+            for move_count in 1..MAX_MOVES {
+                if (depth < 3) || (move_count < 3) {
+                    table[depth][move_count] = 0;
+                    continue;
+                }
+
+                // Standard log(depth) * log(move_count) scaling
+                let r = (depth as f64).ln() * (move_count as f64).ln() / 1.75;
+                table[depth][move_count] = r as i32;
+            }
+        }
+
+        table
     }
 
     /// Calculates the occupancy bitboard for a given color.
@@ -164,6 +185,16 @@ impl Board {
         ];
 
         self.zobrist_hash = self.compute_zobrist_hash();
+    }
+
+    pub fn has_non_pawn_mat(&self) -> bool {
+        let pawns =
+            self.pieces[0][PieceKind::Pawn as usize] | self.pieces[1][PieceKind::Pawn as usize];
+        let kings = self.kings[0] | self.kings[1];
+
+        let non_pawn_pieces = self.total_occupency & !pawns & !kings;
+
+        non_pawn_pieces != 0
     }
 
     #[inline(always)]

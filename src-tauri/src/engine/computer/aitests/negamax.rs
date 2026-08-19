@@ -24,6 +24,7 @@ fn depth_zero_returns_static_eval() {
         i32::MAX,
         &Instant::now(),
         &Duration::from_millis(400),
+        true,
     );
     assert_eq!(search_score, eval_score);
 }
@@ -41,6 +42,7 @@ fn no_legal_moves_in_check_returns_mate_score() {
         i32::MAX,
         &Instant::now(),
         &Duration::from_millis(400),
+        true,
     );
     assert!(is_mate_score(score)); // however you define/detect this
 }
@@ -57,6 +59,7 @@ fn no_legal_moves_not_in_check_returns_zero() {
         i32::MAX,
         &Instant::now(),
         &Duration::from_millis(400),
+        true,
     );
     assert_eq!(score, 0);
 }
@@ -123,6 +126,7 @@ fn negamax_is_deterministic() {
         i32::MAX,
         &Instant::now(),
         &Duration::from_millis(1000),
+        true,
     );
     let s2 = search.negamax(
         100,
@@ -131,6 +135,7 @@ fn negamax_is_deterministic() {
         i32::MAX,
         &Instant::now(),
         &Duration::from_millis(1000),
+        true,
     );
     assert_eq!(s1, s2);
 }

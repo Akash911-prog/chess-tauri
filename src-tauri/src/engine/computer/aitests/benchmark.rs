@@ -29,11 +29,9 @@ fn timed_negamax() {
         None
     };
 
-    let time_limit = Duration::from_millis(400000);
-
     // 2. Run current benchmark
     let start = Instant::now();
-    let s1 = search.negamax(7, 0, i32::MIN + 1, i32::MAX, &start, &time_limit);
+    let s1 = search.find_best_move(1000);
     let elapsed = start.elapsed();
 
     // 3. Calculate current metrics
@@ -59,7 +57,8 @@ fn timed_negamax() {
 
     // 5. Print results and comparison
     println!("\n--- Search Results ---");
-    println!("Negamax score: {}", s1);
+    println!("depth : {}", search.depth);
+    println!("Negamax score: {}", s1.1);
     println!("Nodes visited: {}", nodes);
     println!("Elapsed time : {:.3} ms", elapsed_ms);
     println!("NPS          : {:.0} nodes/s", nps);

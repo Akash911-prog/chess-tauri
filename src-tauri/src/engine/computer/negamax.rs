@@ -53,6 +53,7 @@ impl<'a> Search<'a> {
         mut beta: i32,
         timer: &Instant,
         time_limit: &Duration,
+        allow_null_move: bool,
     ) -> i32 {
         self.nodes_visited += 1;
 
@@ -88,9 +89,28 @@ impl<'a> Search<'a> {
             }
         }
 
+        let check_info = self.board.check_for_check();
+
+        if (!check_info.is_check) & (depth >= 3) & (self.board.has_non_pawn_mat()) & allow_null_move
+        {
+            self.board.player_turn ^= 1;
+            let score = -self.negamax(1, 1, -beta, -beta + 1, timer, time_limit, false);
+            self.board.player_turn ^= 1;
+            if score >= beta {
+                return beta;
+            }
+        }
+
         let mut legal_moves = std::mem::take(&mut self.move_buffers[ply as usize]);
 
         self.board.generate_legal_moves(&mut legal_moves);
+
+        if legal_moves.is_empty() {
+            if check_info.is_check {
+                return -(self.mate_score(ply));
+            }
+            return 0;
+        }
 
         legal_moves.sort_unstable_by_key(|mv| {
             if Some(*mv) == tt_move {
@@ -100,23 +120,37 @@ impl<'a> Search<'a> {
             }
         });
 
-        if legal_moves.is_empty() {
-            if self.board.check_for_check().is_check {
-                return -(self.mate_score(ply));
-            }
-            return 0;
-        }
-
         if depth == 0 {
             return self.quiescence(alpha, beta);
         }
 
         let mut best_score = i32::MIN + 1;
         let mut best_move = None;
+        let mut score;
+        let mut i = 0;
 
         for mv in &legal_moves {
             self.board.make_move(*mv);
-            let score = -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit);
+
+            if i == 0 {
+                score = -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit, true);
+            } else {
+                score = -self.negamax(
+                    depth - 1,
+                    ply + 1,
+                    -alpha - 1,
+                    -alpha,
+                    timer,
+                    time_limit,
+                    true,
+                );
+
+                if (score > alpha) & (score < beta) {
+                    score =
+                        -self.negamax(depth - 1, ply + 1, -beta, -alpha, timer, time_limit, true);
+                }
+            }
+
             self.board.undo_move();
 
             if score > best_score {
@@ -128,6 +162,8 @@ impl<'a> Search<'a> {
             if alpha >= beta {
                 break;
             }
+
+            i += 1;
         }
 
         let bound = if best_score <= original_alpha {
@@ -193,7 +229,7 @@ impl<'a> Search<'a> {
 
             for mv in &possible_moves {
                 self.board.make_move(*mv);
-                let score = -self.negamax(depth - 1, 1, -beta, -alpha, &start, &time_limit);
+                let score = -self.negamax(depth - 1, 1, -beta, -alpha, &start, &time_limit, true);
                 self.board.undo_move();
                 scored_moves.push((*mv, score));
                 if score > alpha {
