@@ -112,7 +112,12 @@ impl<'a> Search<'a> {
 
         let check_info = self.board.check_for_check();
 
-        if (!check_info.is_check) & (depth >= 3) & (self.board.has_non_pawn_mat()) & allow_null_move
+        if (!check_info.is_check)
+            & (depth >= 3)
+            & (self.board.has_non_pawn_mat())
+            & allow_null_move
+            & (beta < MATE_THRESHOLD)
+            & (beta > -MATE_THRESHOLD)
         {
             const NULL_MOVE_REDUCTION: u8 = 2;
             let old_en_passant = self.board.make_null_move();
