@@ -12,7 +12,7 @@ use crate::engine::{
         evaluator::Evaluator,
         tt::{Bound, TTEntry, TranspositionTable},
     },
-    constants::{MATE_SCORE, MATE_THRESHOLD, MAX_DEPTH, MAX_MOVES},
+    constants::{INF, MATE_SCORE, MATE_THRESHOLD, MAX_DEPTH, MAX_MOVES},
     movegen::{Move, MoveFlag},
     types::PieceKind,
 };
@@ -299,7 +299,7 @@ impl<'a> Search<'a> {
         let mut depth = 1;
 
         loop {
-            // stop before starting a new depth if we're out of budget
+            // Stop before starting a new depth if we're out of budget.
             if start.elapsed() >= time_limit {
                 break;
             }
@@ -309,6 +309,7 @@ impl<'a> Search<'a> {
                 .probe(self.board.zobrist_hash)
                 .and_then(|entry| entry.best_move);
 
+            // Search the TT move first, then other moves by move-ordering score.
             possible_moves.sort_unstable_by_key(|mv| {
                 if Some(*mv) == tt_move {
                     Reverse(i32::MAX)
@@ -317,21 +318,26 @@ impl<'a> Search<'a> {
                 }
             });
 
-            let mut alpha = i32::MIN + 1;
-            let beta = i32::MAX;
+            let mut alpha = -INF;
+            let beta = INF;
+
             let mut scored_moves: Vec<(Move, i32)> = Vec::with_capacity(possible_moves.len());
 
             for mv in &possible_moves {
                 self.board.make_move(*mv);
+
                 let score = -self.negamax(depth - 1, 1, -beta, -alpha, &start, &time_limit, true);
+
                 self.board.undo_move();
+
                 scored_moves.push((*mv, score));
+
                 if score > alpha {
                     alpha = score;
                 }
 
-                // bail mid-depth if we've blown the budget; this depth's
-                // results are partial and unreliable, so discard them
+                // Bail mid-depth if we've blown the budget.
+                // This depth's results are partial and unreliable.
                 if start.elapsed() >= time_limit {
                     self.aborted = true;
                     break;
@@ -342,19 +348,18 @@ impl<'a> Search<'a> {
                 break;
             }
 
-            let depth_best_score = scored_moves.iter().map(|(_, s)| *s).max().unwrap();
-            const EPSILON: i32 = 3; // centipawns
-            let candidates: Vec<Move> = scored_moves
+            // Pick the actual highest-scoring move.
+            let (depth_best_move, depth_best_score) = scored_moves
                 .iter()
-                .filter(|(_, s)| depth_best_score - s <= EPSILON)
-                .map(|(mv, _)| *mv)
-                .collect();
+                .max_by_key(|(_, score)| *score)
+                .copied()
+                .unwrap();
 
-            best_move = *candidates.choose(&mut thread_rng()).unwrap();
+            best_move = depth_best_move;
             best_score = depth_best_score;
 
-            // reorder for next iteration so the best move from this depth
-            // gets searched first (helps alpha-beta cutoffs next pass)
+            // Reorder for the next iteration so the best move from this
+            // depth gets searched first.
             if let Some(pos) = possible_moves.iter().position(|mv| *mv == best_move) {
                 possible_moves.swap(0, pos);
             }

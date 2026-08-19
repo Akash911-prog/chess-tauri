@@ -198,3 +198,5 @@ pub const MATE_THRESHOLD: i32 = 10000 - 128;
 
 pub const MAX_DEPTH: usize = 256;
 pub const MAX_MOVES: usize = 256;
+
+pub const INF: i32 = MATE_SCORE + 1000; // instead of i32::MIN+1 / i32::MAX everywhere

@@ -99,50 +99,6 @@ impl Board {
         self.zobrist_hash = 0;
     }
 
-    /// Calculates the occupancy bitboard for a given color.
-    ///
-    /// Combines all six piece-type bitboards belonging to `color`
-    /// using a bitwise OR.
-    ///
-    /// # Arguments
-    ///
-    /// * `color` - The color whose occupied squares should be calculated.
-    ///
-    /// # Returns
-    ///
-    /// A [`BitBoard`] containing every square occupied by the given color.
-    // fn get_color_occupency(&self, color: Color) -> BitBoard {
-    //     self.pieces[color as usize]
-    //         .iter()
-    //         .fold(BitBoard::EMPTY, |a, b| a | *b)
-    // }
-
-    // /// Returns the squares currently occupied by White pieces.
-    // ///
-    // /// # Returns
-    // ///
-    // /// A [`BitBoard`] containing all White pieces.
-    // pub fn get_white_occupency(&self) -> BitBoard {
-    //     self.color_occupency[Color::White]
-    // }
-
-    // /// Returns the occupancy bitboard for both sides combined.
-    // ///
-    // /// # Returns
-    // ///
-    // /// A [`BitBoard`] containing every occupied square on the board.
-    // pub fn get_black_occupency(&self) -> BitBoard {
-    //     self.color_occupency[Color::Black]
-    // }
-
-    // pub fn get_current_board(&self) -> BitBoard {
-    //     self.total_occupency
-    // }
-
-    // pub fn friendly_pieces(&self) -> BitBoard {
-    //     self.color_occupency[self.player_turn as usize]
-    // }
-
     /// Recalculates all cached occupancy information and the enemy attack mask.
     ///
     /// This should be called after modifying the underlying piece bitboards.
@@ -355,6 +311,9 @@ impl Board {
 
         self.en_passant_square = 64;
         self.player_turn ^= 1;
+        self.pinned_pieces = self.compute_pinned_pieces(self.player_turn);
+        self.fullmove_clock += 1;
+        self.halfmove_clock = 0;
 
         old_en_passant
     }
@@ -362,6 +321,7 @@ impl Board {
     /// Undoes a null move made with [`Board::make_null_move`].
     pub fn undo_null_move(&mut self, old_en_passant: u8) {
         self.player_turn ^= 1;
+        self.pinned_pieces = self.compute_pinned_pieces(self.player_turn);
 
         self.zobrist_hash ^= Self::zobrist_side();
         // Current contribution is "none" (0); fold the real old square back in.

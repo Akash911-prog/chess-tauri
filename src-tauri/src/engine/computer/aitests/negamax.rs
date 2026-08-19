@@ -90,7 +90,7 @@ fn no_legal_moves_not_in_check_returns_zero() {
 fn finds_mate_in_one() {
     let mut board = setup_board("7k/5ppp/8/8/8/8/8/R3K3 w - - 0 1");
     let mut search = Search::new(&mut board);
-    let (best_move, score) = search.find_best_move(1);
+    let (best_move, score) = search.find_best_move(1000);
 
     assert_eq!(best_move.from(), 0); // a1
     assert_eq!(best_move.to(), 56); // a8
@@ -107,7 +107,7 @@ fn finds_mate_in_one() {
 fn finds_mate_in_two() {
     let mut board = setup_board("1k3q1r/6p1/2pN4/Q3P2r/P3P3/5bP1/1P3PB1/2R3K1 b - - 0 1");
     let mut search = Search::new(&mut board);
-    let (best_move, score) = search.find_best_move(3); // depth 3: W, B, W
+    let (best_move, score) = search.find_best_move(1000); // depth 3: W, B, W
 
     assert_eq!(best_move.from(), 39); // h5
     assert_eq!(best_move.to(), 7); // h1

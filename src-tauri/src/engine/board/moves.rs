@@ -244,6 +244,7 @@ impl super::Board {
         self.fullmove_clock -= 1;
 
         self.update(mv, self.player_turn as usize);
+        self.pinned_pieces = self.compute_pinned_pieces(self.player_turn as u8);
     }
 
     /// Returns the castling rights for the current position.
