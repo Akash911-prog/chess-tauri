@@ -11,7 +11,7 @@ use crate::engine::{
         evaluator::Evaluator,
         tt::{Bound, TTEntry, TranspositionTable},
     },
-    constants::MATE_SCORE,
+    constants::{MATE_SCORE, MATE_THRESHOLD},
     movegen::{Move, MoveFlag},
     types::PieceKind,
 };
@@ -69,14 +69,21 @@ impl<'a> Search<'a> {
 
         if let Some(entry) = probe {
             if entry.depth >= depth {
+                let mut tt_score = entry.score;
+                if tt_score >= MATE_THRESHOLD {
+                    tt_score -= ply;
+                } else if tt_score <= -MATE_THRESHOLD {
+                    tt_score += ply;
+                }
+
                 match entry.bound {
-                    Bound::Exact => return entry.score,
-                    Bound::Lower => alpha = alpha.max(entry.score),
-                    Bound::Upper => beta = beta.min(entry.score),
+                    Bound::Exact => return tt_score,
+                    Bound::Lower => alpha = alpha.max(tt_score),
+                    Bound::Upper => beta = beta.min(tt_score),
                 }
 
                 if alpha >= beta {
-                    return entry.score;
+                    return tt_score;
                 }
             }
         }
@@ -131,10 +138,18 @@ impl<'a> Search<'a> {
             Bound::Exact
         };
 
+        let tt_score = if best_score >= MATE_THRESHOLD {
+            best_score + ply
+        } else if best_score <= -MATE_THRESHOLD {
+            best_score - ply
+        } else {
+            best_score
+        };
+
         self.tt.store(TTEntry {
             key: hash,
             depth,
-            score: best_score,
+            score: tt_score,
             bound,
             best_move,
         });

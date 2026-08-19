@@ -193,3 +193,5 @@ pub const PAWN_BLOCKED_PENALTY: [i32; 8] = [
 ];
 
 pub const MATE_SCORE: i32 = 100000;
+
+pub const MATE_THRESHOLD: i32 = 10000 - 128;
